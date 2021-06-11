@@ -22,7 +22,7 @@ Take a look at the jupyter notebooks in the `examples` folder.
 
 ## Installation
 
-The library is written in Rust with bindings for Python 3.
+The library is written in [Rust](https://www.rust-lang.org/) with bindings for Python 3 via [PyO3](https://github.com/PyO3/pyo3).
 
 ### Compiling the Rust library
 
@@ -42,7 +42,7 @@ We found the latter option to drastically improve simulation times.
 
 ### Building the Python package
 
-To build the python package, we use `maturin`, which needs either a `conda` environment or a `virtualenv`.
+To build the python package, we use [`maturin`](https://github.com/PyO3/maturin), which needs either a `conda` environment or a `virtualenv`.
 
 Here is an example using `virtualenv`, where we name our environment *sargas*.
 
@@ -70,3 +70,7 @@ Finally, it is useful to create an Ipython kernel for our environment for easy u
 ```
 python -m ipykernel install --user --name sargas --display-name "sargas"
 ```
+
+---
+
+[**sargas**](https://en.wikipedia.org/wiki/Theta_Scorpii) is an evolved bright giant and one of the brightest stars in the night sky.

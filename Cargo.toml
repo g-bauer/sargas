@@ -1,5 +1,5 @@
 [package]
-name = "loki"
+name = "sargas"
 version = "0.1.0"
 authors = ["Gernot Bauer <bauer@itt.uni-stuttgart.de>"]
 edition = "2018"
