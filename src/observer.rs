@@ -28,7 +28,6 @@ impl Observer {
 
     pub fn sample(&mut self, system: &System) {
         let p = self.f.as_ref()(system);
-        dbg!(&p);
         if self.property.is_empty() {
             p.iter().for_each(|(k, &v)| {
                 self.property.insert(k.clone(), vec![v]);
@@ -72,6 +71,12 @@ fn properties_sample(system: &System) -> HashMap<String, f64> {
     m
 }
 
+fn widom_insertion(system: &System) -> HashMap<String, f64> {
+    let mut m = HashMap::new();
+    m.insert("mu".into(), system.ghost_particle_energy());
+    m
+}
+
 #[pyclass(name = "Observer", unsendable)]
 pub struct PyObserver {
     pub _data: Rc<RefCell<Observer>>,
@@ -109,6 +114,18 @@ impl PyObserver {
             _data: Rc::new(RefCell::new(Observer::new(
                 "properties".to_owned(),
                 Box::new(properties_sample),
+                frequency,
+                None,
+            ))),
+        }
+    }
+
+    #[staticmethod]
+    fn widom_insertion(frequency: usize) -> Self {
+        Self {
+            _data: Rc::new(RefCell::new(Observer::new(
+                "widom".to_owned(),
+                Box::new(widom_insertion),
                 frequency,
                 None,
             ))),

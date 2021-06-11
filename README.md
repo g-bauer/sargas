@@ -44,12 +44,12 @@ We found the latter option to drastically improve simulation times.
 
 To build the python package, we use [`maturin`](https://github.com/PyO3/maturin), which needs either a `conda` environment or a `virtualenv`.
 
-Here is an example using `virtualenv`, where we name our environment *sargas*.
+Here is an example using `virtualenv`, where we name our environment *sargas_venv*.
 
 ```terminal
 pip install virtualenv
-virtualenv sargas
-source sargas/bin/activate
+virtualenv sargas_venv
+source sargas_venv/bin/activate
 pip install numpy pandas ipykernel maturin
 ```
 

@@ -12,20 +12,22 @@ use rand::rngs::ThreadRng;
 use rand::Rng;
 use rand_distr::Distribution;
 
-pub enum AcceptanceCriterion {
+const MAXIMUM_BOLTZMANN_FACTOR: f64 = 75.0;
+
+pub enum MoveProposal {
     Accepted,
     Rejected,
 }
 
-impl AcceptanceCriterion {
-    pub fn apply<R: Rng + ?Sized>(ln_boltzmann: f64, rng: &mut R) -> Self {
-        if ln_boltzmann < 0.0 {
-            AcceptanceCriterion::Accepted
-        } else {
-            if rng.gen::<f64>() < -ln_boltzmann.exp() {
-                AcceptanceCriterion::Accepted
+pub fn metropolis<R: Rng + ?Sized>(boltzmann_factor: f64, rng: &mut R) -> MoveProposal {
+    match boltzmann_factor {
+        f if f > MAXIMUM_BOLTZMANN_FACTOR => MoveProposal::Rejected,
+        f if f < 0.0 => MoveProposal::Accepted,
+        f => {
+            if rng.gen::<f64>() < (-f).exp() {
+                MoveProposal::Accepted
             } else {
-                AcceptanceCriterion::Rejected
+                MoveProposal::Rejected
             }
         }
     }

@@ -6,7 +6,8 @@ use numpy::{IntoPyArray, PyArray2};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use pyo3::PyObjectProtocol;
-use rand_distr::{Distribution, Normal};
+use rand::thread_rng;
+use rand_distr::{Distribution, Normal, Uniform};
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
@@ -83,7 +84,7 @@ impl System {
             max_nparticles: max_nparticles,
             compute_forces: true,
         };
-        system.initialize_system();
+        system.reset();
         system
     }
 
@@ -123,6 +124,7 @@ impl System {
         for _ in 0..insertions {
             mv.insert_particle(&mut system);
             if system.nparticles == nparticles {
+                system.reset();
                 return Ok(system);
             }
             // println!("try: {}, n: {}", i, system.nparticles);
@@ -172,8 +174,7 @@ impl System {
         let mut virial = 0.0;
         for j in start_idx.unwrap_or(0)..self.nparticles {
             let (uij, vij) = if i != j {
-                let mut rij = self.positions[j] - position_i;
-                self.nearest_image(&mut rij);
+                let rij = (self.positions[j] - position_i).nearest_image(self.box_length);
                 let r2 = rij.dot(&rij);
                 if r2 <= self.rc2 {
                     self.potential.energy_virial(r2)
@@ -187,6 +188,30 @@ impl System {
             virial += vij;
         }
         (energy, virial)
+    }
+
+    pub fn ghost_particle_energy(&self) -> f64 {
+        if self.nparticles == 0 {
+            return 0.0;
+        }
+        let mut rng = thread_rng();
+        let dist = Uniform::new(0.0, self.box_length);
+        let ri = Vec3::new(
+            dist.sample(&mut rng),
+            dist.sample(&mut rng),
+            dist.sample(&mut rng),
+        );
+        self.positions.iter().fold(0.0, |energy, rj| {
+            energy + {
+                let rij = (rj - ri).nearest_image(self.box_length);
+                let r2 = rij.dot(&rij);
+                if r2 <= self.rc2 {
+                    self.potential.energy(r2)
+                } else {
+                    0.0
+                }
+            }
+        })
     }
 
     pub fn energy(&self) -> f64 {
@@ -208,31 +233,17 @@ impl System {
         })
     }
 
-    pub fn reset_system(&mut self) {
+    pub fn reset(&mut self) {
         self.energy = 0.0;
         self.virial = 0.0;
         self.forces.iter_mut().for_each(|fi| *fi = Vec3::zero());
         self.velocities.iter_mut().for_each(|vi| *vi = Vec3::zero());
-    }
-
-    pub fn initialize_system(&mut self) {
-        self.reset_system();
         if self.nparticles == 0 {
             return;
         }
-        for i in 0..self.nparticles - 1 {
-            let position_i = self.positions[i];
-            for j in i + 1..self.nparticles {
-                let mut rij = self.positions[j] - position_i;
-                self.nearest_image(&mut rij);
-                let r2 = rij.dot(&rij);
-                if r2 <= self.rc2 {
-                    let (u, v) = self.potential.energy_virial(r2);
-                    self.energy += u;
-                    self.virial += v;
-                }
-            }
-        }
+        let (e, v) = self.energy_virial();
+        self.energy = e;
+        self.virial = v;
         self.forces = self.compute_forces();
         self.velocities = maxwell_boltzmann(self.temperature, self.nparticles);
     }
@@ -364,7 +375,15 @@ impl PySystem {
 
     #[getter]
     fn get_energy(&self) -> f64 {
+        self._data.borrow().energy
+    }
+
+    fn compute_energy(&self) -> f64 {
         self._data.borrow().energy()
+    }
+
+    fn compute_energy_virial(&self) -> (f64, f64) {
+        self._data.borrow().energy_virial()
     }
 
     #[getter]

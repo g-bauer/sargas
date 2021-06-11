@@ -1,4 +1,4 @@
-use super::MCMove;
+use super::{metropolis, MCMove, MoveProposal};
 use crate::system::System;
 use crate::vec::Vec3;
 use pyo3::prelude::*;
@@ -46,16 +46,18 @@ impl InsertDeleteParticle {
             return;
         }
         let (energy, virial) = system.particle_energy_virial(system.nparticles - 1, None);
-        let acceptance: f64 = self.rng.gen();
         let boltzmann_factor =
-            (system.beta * (self.chemical_potential - energy)).exp() / system.density();
-        if acceptance < boltzmann_factor {
-            self.accepted += 1;
-            system.energy += energy;
-            system.virial += virial;
-        } else {
-            system.positions.pop();
-            system.nparticles = system.positions.len();
+            system.beta * (self.chemical_potential - energy) / system.density().ln();
+        match metropolis(boltzmann_factor, &mut self.rng) {
+            MoveProposal::Accepted => {
+                self.accepted += 1;
+                system.energy += energy;
+                system.virial += virial;
+            }
+            MoveProposal::Rejected => {
+                system.positions.pop();
+                system.nparticles = system.positions.len();
+            }
         }
     }
 
@@ -65,15 +67,20 @@ impl InsertDeleteParticle {
         }
         let i = self.rng.sample(Uniform::from(0..system.nparticles));
         let (energy, virial) = system.particle_energy_virial(i, None);
-        let acceptance: f64 = self.rng.gen();
         let boltzmann_factor =
-            (-system.beta * (self.chemical_potential - energy)).exp() * system.density();
-        if acceptance < boltzmann_factor {
-            self.accepted += 1;
-            system.energy -= energy;
-            system.virial -= virial;
-            system.positions.remove(i);
-            system.nparticles = system.positions.len();
+            (-system.beta * (self.chemical_potential + energy)).exp() * system.density();
+        match metropolis(boltzmann_factor, &mut self.rng) {
+            MoveProposal::Accepted => {
+                self.accepted += 1;
+                system.energy -= energy;
+                system.virial -= virial;
+                system.positions.remove(i);
+                system.nparticles = system.positions.len();
+            }
+            MoveProposal::Rejected => {
+                system.positions.pop();
+                system.nparticles = system.positions.len();
+            }
         }
     }
 }

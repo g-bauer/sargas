@@ -54,6 +54,7 @@ impl Simulation {
 
     pub fn run(&mut self, steps: usize) {
         let mut s = self.system.borrow_mut();
+        s.reset();
         for i in 1..=steps {
             self.propagator.borrow_mut().propagate(&mut s);
 

@@ -9,13 +9,13 @@ use pyo3::prelude::*;
 pub mod prelude {
     pub use crate::observer::Observer;
     pub use crate::potential::{LennardJones, Potential};
-    pub use crate::propagator::monte_carlo::{MonteCarlo, DisplaceParticle, PyDisplaceParticle};
+    pub use crate::propagator::monte_carlo::{DisplaceParticle, MonteCarlo, PyDisplaceParticle};
     pub use crate::simulation::Simulation;
     pub use crate::system::System;
 }
 
 #[pymodule]
-fn loki(_: Python, m: &PyModule) -> PyResult<()> {
+fn sargas(_: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<simulation::PySimulation>()?;
     m.add_class::<system::PySystem>()?;
     m.add_class::<propagator::monte_carlo::PyDisplaceParticle>()?;

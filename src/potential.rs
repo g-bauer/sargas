@@ -55,10 +55,7 @@ impl Potential for LennardJones {
         let a = self.s6 / (r2 * r2 * r2);
         let rep = self.e4 * a * a;
         let att = -self.e4 * a;
-        (
-            rep - att - self.energy_shift,
-            6.0 * (2.0 * rep + att),
-        )
+        (rep + att - self.energy_shift, 6.0 * (2.0 * rep + att))
     }
 
     fn energy_tail(&self, rc: f64, density: f64, nparticles: usize) -> f64 {
