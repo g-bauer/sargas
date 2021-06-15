@@ -251,6 +251,15 @@ macro_rules! op_assign {
                 self.z.$method(other.z);
             }
         }
+
+        impl $imp<f64> for Vec3 {
+            #[inline]
+            fn $method(&mut self, other: f64) {
+                self.x.$method(other);
+                self.y.$method(other);
+                self.z.$method(other);
+            }
+        }
     };
 }
 

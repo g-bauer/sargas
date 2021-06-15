@@ -1,6 +1,8 @@
 use crate::potential::{Potential, PyPotential};
 use crate::propagator::monte_carlo::InsertDeleteParticle;
 use crate::vec::Vec3;
+use itertools::FoldWhile::{Continue, Done};
+use itertools::Itertools;
 use ndarray::Array2;
 use numpy::{IntoPyArray, PyArray2};
 use pyo3::exceptions::PyRuntimeError;
@@ -153,6 +155,9 @@ impl System {
                 let rij = (self.positions[j] - position_i).nearest_image(self.box_length);
                 let r2 = rij.dot(&rij);
                 if r2 <= self.rc2 {
+                    if self.potential.overlaps(r2) {
+                        return f64::INFINITY;
+                    }
                     self.potential.energy(r2)
                 } else {
                     0.0
@@ -177,6 +182,9 @@ impl System {
                 let rij = (self.positions[j] - position_i).nearest_image(self.box_length);
                 let r2 = rij.dot(&rij);
                 if r2 <= self.rc2 {
+                    if self.potential.overlaps(r2) {
+                        return (f64::INFINITY, f64::INFINITY);
+                    }
                     self.potential.energy_virial(r2)
                 } else {
                     (0.0, 0.0)
@@ -218,19 +226,34 @@ impl System {
         if self.nparticles == 0 {
             return 0.0;
         }
-        (0..self.nparticles - 1).fold(0.0, |energy, i| {
-            energy + self.particle_energy(i, Some(i + 1))
-        })
+        let u_tail = self
+            .potential
+            .energy_tail(self.rc, self.density(), self.nparticles);
+        (0..self.nparticles - 1)
+            .fold_while(u_tail, |energy, i| {
+                match self.particle_energy(i, Some(i + 1)) {
+                    u if u.is_finite() => Continue(energy + u),
+                    _ => Done(f64::INFINITY),
+                }
+            })
+            .into_inner()
     }
 
     pub fn energy_virial(&self) -> (f64, f64) {
         if self.nparticles == 0 {
             return (0.0, 0.0);
         }
-        (0..self.nparticles - 1).fold((0.0, 0.0), |(energy, virial), i| {
-            let (u, v) = self.particle_energy_virial(i, Some(i + 1));
-            (energy + u, virial + v)
-        })
+        let u_tail = self
+            .potential
+            .energy_tail(self.rc, self.density(), self.nparticles);
+        (0..self.nparticles - 1)
+            .fold_while((u_tail, 0.0), |(energy, virial), i| {
+                match self.particle_energy_virial(i, Some(i + 1)) {
+                    (u, v) if u.is_finite() => Continue((energy + u, virial + v)),
+                    _ => Done((f64::INFINITY, f64::INFINITY)),
+                }
+            })
+            .into_inner()
     }
 
     pub fn reset(&mut self) {
@@ -264,6 +287,13 @@ impl System {
             }
         }
         forces
+    }
+
+    #[inline]
+    pub fn rescale_box_length(&mut self, box_length_new: f64) {
+        let s = self.box_length / box_length_new;
+        self.positions.iter_mut().for_each(|r| *r *= s);
+        self.box_length = box_length_new;
     }
 
     #[inline]
