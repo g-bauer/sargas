@@ -24,6 +24,7 @@ pub enum MoveProposal {
 pub fn metropolis<R: Rng + ?Sized>(boltzmann_factor: f64, rng: &mut R) -> MoveProposal {
     match boltzmann_factor {
         f if f > MAXIMUM_BOLTZMANN_FACTOR => MoveProposal::Rejected,
+        f if f.is_infinite() => MoveProposal::Rejected,
         f if f < 0.0 => MoveProposal::Accepted,
         f => {
             if rng.gen::<f64>() < (-f).exp() {
@@ -106,6 +107,14 @@ impl PyMCMove {
         nparticles: usize,
     ) -> Self {
         let mv = DisplaceParticle::new(maximum_displacement, target_acceptance, nparticles);
+        Self {
+            _data: Rc::new(RefCell::new(mv)),
+        }
+    }
+
+    #[staticmethod]
+    fn change_volume(maximum_displacement: f64, target_acceptance: f64, pressure: f64) -> Self {
+        let mv = ChangeVolume::new(maximum_displacement, target_acceptance, pressure);
         Self {
             _data: Rc::new(RefCell::new(mv)),
         }

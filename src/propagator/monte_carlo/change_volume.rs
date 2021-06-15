@@ -50,6 +50,7 @@ impl MCMove for ChangeVolume {
         // Store current values for volume and energy
         let energy_old = system.energy(); // todo: replace with currently stored value for energy
         let volume_old = system.volume();
+        let box_length_old = system.box_length;
 
         // Change (logarithmic) volume
         let delta_ln_v = self.rng.sample(&self.select_displacement);
@@ -58,19 +59,34 @@ impl MCMove for ChangeVolume {
         system.rescale_box_length(box_length_new);
         let (energy_new, virial_new) = system.energy_virial();
 
-        let boltzmann_factor = -system.beta
-            * (energy_new - energy_old + self.pressure * delta_v)
-            * (system.nparticles + 1) as f64
-            * (system.volume() / volume_old).ln();
-        match metropolis(boltzmann_factor, &mut self.rng) {
-            MoveProposal::Accepted => {
-                self.accepted += 1;
-                system.energy = energy_new;
-                system.virial = virial_new;
-            }
-            MoveProposal::Rejected => {
-                system.rescale_box_length(1.0 / box_length_new);
-            }
+        // dbg!("volume move");
+        // dbg!(volume_old);
+        // dbg!(delta_v);
+        // dbg!(box_length_new);
+        // dbg!(energy_new);
+        // dbg!(system.volume());
+
+        let boltzmann_factor = -system.beta * (energy_new - energy_old + self.pressure * delta_v)
+            + (system.nparticles + 1) as f64 * (system.volume() / volume_old).ln();
+
+        // dbg!(boltzmann_factor);
+        // match metropolis(boltzmann_factor, &mut self.rng) {
+        //     MoveProposal::Accepted => {
+        //         self.accepted += 1;
+        //         system.energy = energy_new;
+        //         system.virial = virial_new;
+        //     }
+        //     MoveProposal::Rejected => {
+        //         system.rescale_box_length(box_length_old);
+        //     }
+        // }
+        let acceptance: f64 = self.rng.gen();
+        if acceptance < f64::exp(boltzmann_factor) {
+            self.accepted += 1;
+            system.energy = energy_new;
+            system.virial = virial_new;
+        } else {
+            system.rescale_box_length(box_length_old);
         }
     }
 

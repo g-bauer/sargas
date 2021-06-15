@@ -13,6 +13,8 @@ use rand_distr::{Distribution, Normal, Uniform};
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
+use chemfiles::{Trajectory}
+use std::path::Path;
 
 #[derive(Clone)]
 pub struct System {
@@ -132,6 +134,10 @@ impl System {
             // println!("try: {}, n: {}", i, system.nparticles);
         }
         Err(format!("Could not insert all particles (currently: {}). Try to increase number of insertion tries.", system.nparticles))
+    }
+
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<chemfiles::Trajectory, Error> {
+
     }
 }
 
@@ -291,7 +297,7 @@ impl System {
 
     #[inline]
     pub fn rescale_box_length(&mut self, box_length_new: f64) {
-        let s = self.box_length / box_length_new;
+        let s = box_length_new / self.box_length;
         self.positions.iter_mut().for_each(|r| *r *= s);
         self.box_length = box_length_new;
     }
