@@ -1,14 +1,10 @@
 use super::Propagator;
-use crate::system::System;
 use std::cell::RefCell;
 use std::rc::Rc;
-mod change_volume;
-mod displace_particle;
-mod insert_particle;
-pub use change_volume::{ChangeVolume, PyChangeVolume};
-pub use displace_particle::{DisplaceParticle, PyDisplaceParticle};
-pub use insert_particle::{InsertDeleteParticle, PyInsertDeleteParticle};
-use pyo3::prelude::*;
+pub mod change_volume;
+pub mod displace_particle;
+use crate::system::System;
+pub mod insert_particle;
 use rand::distributions::WeightedIndex;
 use rand::rngs::ThreadRng;
 use rand::Rng;
@@ -76,55 +72,74 @@ impl Propagator for MonteCarlo {
     }
 }
 
-#[pyclass(name = "MonteCarlo", unsendable)]
-#[derive(Clone)]
-pub struct PyMonteCarlo {
-    pub _data: Rc<RefCell<MonteCarlo>>,
-}
+#[cfg(feature = "python")]
+pub mod python {
+    use super::*;
+    use pyo3::prelude::*;
+    use super::displace_particle::DisplaceParticle;
+    use super::change_volume::ChangeVolume;
+    use super::insert_particle::InsertDeleteParticle;
 
-#[pymethods]
-impl PyMonteCarlo {
-    #[new]
-    fn new(moves: Vec<PyRef<PyMCMove>>, weights: Vec<usize>, temperature: f64) -> Self {
-        let mvs = moves.iter().map(|mi| mi._data.clone()).collect();
-        Self {
-            _data: Rc::new(RefCell::new(MonteCarlo::new(mvs, weights, temperature))),
-        }
+    #[pyclass(name = "MonteCarlo", unsendable)]
+    #[derive(Clone)]
+    pub struct PyMonteCarlo {
+        pub _data: Rc<RefCell<MonteCarlo>>,
     }
-}
 
-#[pyclass(name = "MCMove", unsendable)]
-pub struct PyMCMove {
-    _data: Rc<RefCell<dyn MCMove>>,
-}
-
-#[pymethods]
-impl PyMCMove {
-    #[staticmethod]
-    fn displace_particle(
-        maximum_displacement: f64,
-        target_acceptance: f64,
-        nparticles: usize,
-    ) -> Self {
-        let mv = DisplaceParticle::new(maximum_displacement, target_acceptance, nparticles);
-        Self {
-            _data: Rc::new(RefCell::new(mv)),
+    #[pymethods]
+    impl PyMonteCarlo {
+        #[new]
+        fn new(moves: Vec<PyRef<PyMCMove>>, weights: Vec<usize>, temperature: f64) -> Self {
+            let mvs = moves.iter().map(|mi| mi._data.clone()).collect();
+            Self {
+                _data: Rc::new(RefCell::new(MonteCarlo::new(mvs, weights, temperature))),
+            }
         }
     }
 
-    #[staticmethod]
-    fn change_volume(maximum_displacement: f64, target_acceptance: f64, pressure: f64) -> Self {
-        let mv = ChangeVolume::new(maximum_displacement, target_acceptance, pressure);
-        Self {
-            _data: Rc::new(RefCell::new(mv)),
-        }
+    #[pyclass(name = "MCMove", unsendable)]
+    pub struct PyMCMove {
+        _data: Rc<RefCell<dyn MCMove>>,
     }
 
-    #[staticmethod]
-    fn insert_delete_particle(chemical_potential: f64) -> Self {
-        let mv = InsertDeleteParticle::new(chemical_potential);
-        Self {
-            _data: Rc::new(RefCell::new(mv)),
+    #[pymethods]
+    impl PyMCMove {
+        #[staticmethod]
+        fn displace_particle(
+            maximum_displacement: f64,
+            target_acceptance: f64,
+            temperature: f64,
+        ) -> Self {
+            let mv = DisplaceParticle::new(maximum_displacement, target_acceptance, temperature);
+            Self {
+                _data: Rc::new(RefCell::new(mv)),
+            }
+        }
+
+        #[staticmethod]
+        fn change_volume(
+            maximum_displacement: f64,
+            target_acceptance: f64,
+            pressure: f64,
+            temperature: f64,
+        ) -> Self {
+            let mv = ChangeVolume::new(
+                maximum_displacement,
+                target_acceptance,
+                pressure,
+                temperature,
+            );
+            Self {
+                _data: Rc::new(RefCell::new(mv)),
+            }
+        }
+
+        #[staticmethod]
+        fn insert_delete_particle(chemical_potential: f64, temperature: f64) -> Self {
+            let mv = InsertDeleteParticle::new(chemical_potential, temperature);
+            Self {
+                _data: Rc::new(RefCell::new(mv)),
+            }
         }
     }
 }

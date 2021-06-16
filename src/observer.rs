@@ -1,5 +1,4 @@
 use crate::system::System;
-use pyo3::prelude::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -51,26 +50,30 @@ fn energy_sample(system: &System) -> HashMap<String, f64> {
 }
 
 fn pressure_sample(system: &System) -> HashMap<String, f64> {
-    let pressure = system.density() / system.beta
-        + system.virial / (3.0 * system.volume())
-        + system.potential.pressure_tail(system.rc, system.density());
+    // let p_ig = system.configuration.density() / system.beta;
+    let pressure = system.virial / (3.0 * system.configuration.volume())
+        + system
+            .potential
+            .pressure_tail(system.configuration.density());
     let mut m = HashMap::new();
     m.insert("pressure".into(), pressure);
     m
 }
 
 fn properties_sample(system: &System) -> HashMap<String, f64> {
-    let volume = system.volume();
-    let pressure = system.density() / system.beta
-        + system.virial / (3.0 * volume)
-        + system.potential.pressure_tail(system.rc, system.density());
+    // let p_ig = system.configuration.density() / system.beta;
+    let volume = system.configuration.volume();
+    let pressure = system.virial / (3.0 * volume)
+        + system
+            .potential
+            .pressure_tail(system.configuration.density());
     let mut m = HashMap::new();
     m.insert("pressure".into(), pressure);
     m.insert("volume".into(), volume);
     m.insert("energy".into(), system.energy);
     m.insert("virial".into(), system.virial);
-    m.insert("density".into(), system.density());
-    m.insert("nparticles".into(), system.nparticles as f64);
+    m.insert("density".into(), system.configuration.density());
+    m.insert("nparticles".into(), system.configuration.nparticles as f64);
     m
 }
 
@@ -80,63 +83,69 @@ fn widom_insertion(system: &System) -> HashMap<String, f64> {
     m
 }
 
-#[pyclass(name = "Observer", unsendable)]
-pub struct PyObserver {
-    pub _data: Rc<RefCell<Observer>>,
-}
+#[cfg(feature = "python")]
+pub mod python {
+    use pyo3::prelude::*;
+    use super::*;
 
-#[pymethods]
-impl PyObserver {
-    #[staticmethod]
-    fn energy(name: String, frequency: usize) -> Self {
-        Self {
-            _data: Rc::new(RefCell::new(Observer::new(
-                name,
-                Box::new(energy_sample),
-                frequency,
-                None,
-            ))),
-        }
+    #[pyclass(name = "Observer", unsendable)]
+    pub struct PyObserver {
+        pub _data: Rc<RefCell<Observer>>,
     }
 
-    #[staticmethod]
-    fn pressure(frequency: usize) -> Self {
-        Self {
-            _data: Rc::new(RefCell::new(Observer::new(
-                "pressure".to_owned(),
-                Box::new(pressure_sample),
-                frequency,
-                None,
-            ))),
+    #[pymethods]
+    impl PyObserver {
+        #[staticmethod]
+        fn energy(name: String, frequency: usize) -> Self {
+            Self {
+                _data: Rc::new(RefCell::new(Observer::new(
+                    name,
+                    Box::new(energy_sample),
+                    frequency,
+                    None,
+                ))),
+            }
         }
-    }
 
-    #[staticmethod]
-    fn properties(frequency: usize) -> Self {
-        Self {
-            _data: Rc::new(RefCell::new(Observer::new(
-                "properties".to_owned(),
-                Box::new(properties_sample),
-                frequency,
-                None,
-            ))),
+        #[staticmethod]
+        fn pressure(frequency: usize) -> Self {
+            Self {
+                _data: Rc::new(RefCell::new(Observer::new(
+                    "pressure".to_owned(),
+                    Box::new(pressure_sample),
+                    frequency,
+                    None,
+                ))),
+            }
         }
-    }
 
-    #[staticmethod]
-    fn widom_insertion(frequency: usize) -> Self {
-        Self {
-            _data: Rc::new(RefCell::new(Observer::new(
-                "widom".to_owned(),
-                Box::new(widom_insertion),
-                frequency,
-                None,
-            ))),
+        #[staticmethod]
+        fn properties(frequency: usize) -> Self {
+            Self {
+                _data: Rc::new(RefCell::new(Observer::new(
+                    "properties".to_owned(),
+                    Box::new(properties_sample),
+                    frequency,
+                    None,
+                ))),
+            }
         }
-    }
 
-    #[getter]
-    fn get_data(&self) -> PyResult<HashMap<String, Vec<f64>>> {
-        Ok(self._data.borrow().get())
+        #[staticmethod]
+        fn widom_insertion(frequency: usize) -> Self {
+            Self {
+                _data: Rc::new(RefCell::new(Observer::new(
+                    "widom".to_owned(),
+                    Box::new(widom_insertion),
+                    frequency,
+                    None,
+                ))),
+            }
+        }
+
+        #[getter]
+        fn get_data(&self) -> PyResult<HashMap<String, Vec<f64>>> {
+            Ok(self._data.borrow().get())
+        }
     }
 }

@@ -1,24 +1,25 @@
 use super::{metropolis, MCMove, MoveProposal};
 use crate::system::System;
 use crate::vec::Vec3;
-use pyo3::prelude::*;
 use rand::{distributions::Uniform, Rng};
 use rand::{rngs::ThreadRng, thread_rng};
 use std::fmt;
 
 #[derive(Clone)]
 pub struct InsertDeleteParticle {
+    pub chemical_potential: f64,
+    pub temperature: f64,
+    beta: f64,
     accepted_total: usize,
     attempted_total: usize,
     pub accepted: usize,
     pub attempted: usize,
     pub rng: ThreadRng,
-    pub chemical_potential: f64,
     exp_beta_mu: f64,
 }
 
 impl InsertDeleteParticle {
-    pub fn new(chemical_potential: f64) -> Self {
+    pub fn new(chemical_potential: f64, temperature: f64) -> Self {
         Self {
             accepted_total: 0,
             attempted_total: 0,
@@ -26,28 +27,31 @@ impl InsertDeleteParticle {
             attempted: 0,
             rng: thread_rng(),
             chemical_potential,
+            temperature,
+            beta: 1.0 / temperature,
             exp_beta_mu: 0.0,
         }
     }
 
     pub fn insert_particle(&mut self, system: &mut System) {
-        if system.nparticles == system.max_nparticles {
+        if system.configuration.nparticles == system.configuration.max_nparticles {
             return;
         }
-        let dist = Uniform::new(0.0, system.box_length);
-        system.positions.push(Vec3::new(
+        let dist = Uniform::new(0.0, system.configuration.box_length);
+        system.configuration.positions.push(Vec3::new(
             self.rng.sample(dist),
             self.rng.sample(dist),
             self.rng.sample(dist),
         ));
-        system.nparticles = system.positions.len();
-        if system.nparticles == 1 {
+        system.configuration.nparticles = system.configuration.positions.len();
+        if system.configuration.nparticles == 1 {
             self.accepted += 1;
             return;
         }
-        let (energy, virial) = system.particle_energy_virial(system.nparticles - 1, None);
+        let (energy, virial) =
+            system.particle_energy_virial(system.configuration.nparticles - 1, None);
         let boltzmann_factor =
-            system.beta * (self.chemical_potential - energy) / system.density().ln();
+            self.beta * (self.chemical_potential - energy) / system.configuration.density().ln();
         match metropolis(boltzmann_factor, &mut self.rng) {
             MoveProposal::Accepted => {
                 self.accepted += 1;
@@ -55,39 +59,41 @@ impl InsertDeleteParticle {
                 system.virial += virial;
             }
             MoveProposal::Rejected => {
-                system.positions.pop();
-                system.nparticles = system.positions.len();
+                system.configuration.positions.pop();
+                system.configuration.nparticles = system.configuration.positions.len();
             }
         }
     }
 
     fn delete_particle(&mut self, system: &mut System) {
-        if system.nparticles == 0 {
+        if system.configuration.nparticles == 0 {
             return;
         }
-        let i = self.rng.sample(Uniform::from(0..system.nparticles));
+        let i = self
+            .rng
+            .sample(Uniform::from(0..system.configuration.nparticles));
         let (energy, virial) = system.particle_energy_virial(i, None);
-        let boltzmann_factor =
-            (-system.beta * (self.chemical_potential + energy)).exp() * system.density();
+        let boltzmann_factor = (-self.beta * (self.chemical_potential + energy)).exp()
+            * system.configuration.density();
         match metropolis(boltzmann_factor, &mut self.rng) {
             MoveProposal::Accepted => {
                 self.accepted += 1;
                 system.energy -= energy;
                 system.virial -= virial;
-                system.positions.remove(i);
-                system.nparticles = system.positions.len();
+                system.configuration.positions.remove(i);
+                system.configuration.nparticles = system.configuration.positions.len();
             }
             MoveProposal::Rejected => {
-                system.positions.pop();
-                system.nparticles = system.positions.len();
+                system.configuration.positions.pop();
+                system.configuration.nparticles = system.configuration.positions.len();
             }
         }
     }
 }
 
 impl MCMove for InsertDeleteParticle {
-    fn initialize(&mut self, system: &System) {
-        self.exp_beta_mu = (system.beta * self.chemical_potential).exp();
+    fn initialize(&mut self, _system: &System) {
+        self.exp_beta_mu = (self.beta * self.chemical_potential).exp();
     }
 
     fn apply(&mut self, system: &mut System) {
@@ -133,18 +139,24 @@ impl fmt::Display for InsertDeleteParticle {
     }
 }
 
-#[pyclass(name = "InsertDeleteParticle", unsendable)]
-#[derive(Clone)]
-pub struct PyInsertDeleteParticle {
-    pub _data: InsertDeleteParticle,
-}
+#[cfg(feature = "python")]
+pub mod python {
+    use super::*;
+    use pyo3::prelude::*;
 
-#[pymethods]
-impl PyInsertDeleteParticle {
-    #[new]
-    fn new(chemical_potential: f64) -> Self {
-        Self {
-            _data: InsertDeleteParticle::new(chemical_potential),
+    #[pyclass(name = "InsertDeleteParticle", unsendable)]
+    #[derive(Clone)]
+    pub struct PyInsertDeleteParticle {
+        pub _data: InsertDeleteParticle,
+    }
+
+    #[pymethods]
+    impl PyInsertDeleteParticle {
+        #[new]
+        fn new(chemical_potential: f64, temperature: f64) -> Self {
+            Self {
+                _data: InsertDeleteParticle::new(chemical_potential, temperature),
+            }
         }
     }
 }

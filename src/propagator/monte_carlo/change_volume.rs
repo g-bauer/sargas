@@ -1,6 +1,5 @@
 use super::{metropolis, MCMove, MoveProposal};
 use crate::system::System;
-use pyo3::prelude::*;
 use rand::{distributions::Uniform, Rng};
 use rand::{rngs::ThreadRng, thread_rng};
 use std::fmt;
@@ -9,6 +8,8 @@ use std::fmt;
 #[derive(Clone)]
 pub struct ChangeVolume {
     pub pressure: f64,
+    pub temperature: f64,
+    beta: f64,
     accepted_total: usize,
     attempted_total: usize,
     pub accepted: usize,
@@ -20,9 +21,16 @@ pub struct ChangeVolume {
 }
 
 impl ChangeVolume {
-    pub fn new(maximum_displacement: f64, target_acceptance: f64, pressure: f64) -> Self {
+    pub fn new(
+        maximum_displacement: f64,
+        target_acceptance: f64,
+        pressure: f64,
+        temperature: f64,
+    ) -> Self {
         Self {
             pressure: pressure,
+            temperature: temperature,
+            beta: 1.0 / temperature,
             accepted_total: 0,
             attempted_total: 0,
             accepted: 0,
@@ -42,32 +50,26 @@ impl MCMove for ChangeVolume {
     fn initialize(&mut self, _system: &System) {}
 
     fn apply(&mut self, system: &mut System) {
-        if system.nparticles == 0 {
+        if system.configuration.nparticles == 0 {
             return;
         }
         self.attempted += 1;
 
         // Store current values for volume and energy
         let energy_old = system.energy(); // todo: replace with currently stored value for energy
-        let volume_old = system.volume();
-        let box_length_old = system.box_length;
+        let volume_old = system.configuration.volume();
+        let box_length_old = system.configuration.box_length;
 
         // Change (logarithmic) volume
         let delta_ln_v = self.rng.sample(&self.select_displacement);
         let delta_v = delta_ln_v.exp();
         let box_length_new = (volume_old + delta_v).cbrt();
-        system.rescale_box_length(box_length_new);
+        system.configuration.rescale_box_length(box_length_new);
         let (energy_new, virial_new) = system.energy_virial();
 
-        // dbg!("volume move");
-        // dbg!(volume_old);
-        // dbg!(delta_v);
-        // dbg!(box_length_new);
-        // dbg!(energy_new);
-        // dbg!(system.volume());
-
-        let boltzmann_factor = -system.beta * (energy_new - energy_old + self.pressure * delta_v)
-            + (system.nparticles + 1) as f64 * (system.volume() / volume_old).ln();
+        let boltzmann_factor = -self.beta * (energy_new - energy_old + self.pressure * delta_v)
+            + (system.configuration.nparticles + 1) as f64
+                * (system.configuration.volume() / volume_old).ln();
 
         // dbg!(boltzmann_factor);
         // match metropolis(boltzmann_factor, &mut self.rng) {
@@ -86,7 +88,7 @@ impl MCMove for ChangeVolume {
             system.energy = energy_new;
             system.virial = virial_new;
         } else {
-            system.rescale_box_length(box_length_old);
+            system.configuration.rescale_box_length(box_length_old);
         }
     }
 
@@ -103,8 +105,8 @@ impl MCMove for ChangeVolume {
             q if q < 0.5 => 0.5,
             q => q,
         };
-        if self.maximum_displacement > 0.5 * system.box_length {
-            self.maximum_displacement = 0.5 * system.box_length;
+        if self.maximum_displacement > 0.5 * system.configuration.box_length {
+            self.maximum_displacement = 0.5 * system.configuration.box_length;
         }
         self.select_displacement =
             Uniform::new_inclusive(-self.maximum_displacement, self.maximum_displacement);
@@ -135,18 +137,34 @@ impl fmt::Display for ChangeVolume {
     }
 }
 
-#[pyclass(name = "ChangeVolume", unsendable)]
-#[derive(Clone)]
-pub struct PyChangeVolume {
-    pub _data: ChangeVolume,
-}
+#[cfg(feature = "python")]
+pub mod python {
+    use super::*;
+    use pyo3::prelude::*;
 
-#[pymethods]
-impl PyChangeVolume {
-    #[new]
-    fn new(maximum_displacement: f64, target_acceptance: f64, pressure: f64) -> Self {
-        Self {
-            _data: ChangeVolume::new(maximum_displacement, target_acceptance, pressure),
+    #[pyclass(name = "ChangeVolume", unsendable)]
+    #[derive(Clone)]
+    pub struct PyChangeVolume {
+        pub _data: ChangeVolume,
+    }
+
+    #[pymethods]
+    impl PyChangeVolume {
+        #[new]
+        fn new(
+            maximum_displacement: f64,
+            target_acceptance: f64,
+            pressure: f64,
+            temperature: f64,
+        ) -> Self {
+            Self {
+                _data: ChangeVolume::new(
+                    maximum_displacement,
+                    target_acceptance,
+                    pressure,
+                    temperature,
+                ),
+            }
         }
     }
 }

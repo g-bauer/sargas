@@ -1,11 +1,7 @@
-use crate::observer::{Observer, PyObserver};
-use crate::propagator::monte_carlo::PyMonteCarlo;
+use crate::observer::Observer;
 use crate::propagator::Propagator;
-use crate::system::{PySystem, System};
-use pyo3::prelude::*;
-use pyo3::PyObjectProtocol;
+use crate::system::System;
 use std::collections::HashMap;
-use std::fmt;
 use std::rc::Rc;
 use std::{borrow::Borrow, cell::RefCell};
 
@@ -54,7 +50,7 @@ impl Simulation {
 
     pub fn run(&mut self, steps: usize) {
         let mut s = self.system.borrow_mut();
-        s.reset();
+        s.recompute();
         for i in 1..=steps {
             self.propagator.borrow_mut().propagate(&mut s);
 
@@ -75,86 +71,95 @@ impl Simulation {
     }
 }
 
-#[pyclass(name = "Simulation", unsendable)]
-pub struct PySimulation {
-    _data: Simulation,
-}
+#[cfg(feature = "python")]
+pub mod python {
+    use super::*;
+    use crate::observer::python::PyObserver;
+    use crate::propagator::monte_carlo::python::*;
+    use crate::system::python::PySystem;
+    use pyo3::prelude::*;
 
-#[pymethods]
-impl PySimulation {
-    #[staticmethod]
-    fn monte_carlo(
-        system: PySystem,
-        propagator: PyMonteCarlo,
-        update_propagator: Option<usize>,
-    ) -> Self {
-        Self {
-            _data: Simulation::new(system._data, propagator._data, update_propagator).unwrap(),
+    #[pyclass(name = "Simulation", unsendable)]
+    pub struct PySimulation {
+        _data: Simulation,
+    }
+
+    #[pymethods]
+    impl PySimulation {
+        #[staticmethod]
+        fn monte_carlo(
+            system: PySystem,
+            propagator: PyMonteCarlo,
+            update_propagator: Option<usize>,
+        ) -> Self {
+            Self {
+                _data: Simulation::new(system._data, propagator._data, update_propagator).unwrap(),
+            }
+        }
+
+        fn add_observer(&mut self, observer: &PyObserver) {
+            self._data.add_observer(observer._data.clone())
+        }
+
+        fn remove_observer(&mut self, observer: &PyObserver) {
+            self._data.remove_observer(observer._data.clone())
+        }
+
+        fn deactivate_propagator_updates(&mut self) {
+            self._data.deactivate_propagator_updates()
+        }
+
+        fn run(&mut self, steps: usize) {
+            self._data.run(steps)
         }
     }
 
-    fn add_observer(&mut self, observer: &PyObserver) {
-        self._data.add_observer(observer._data.clone())
-    }
+    // #[pyproto]
+    // impl PyObjectProtocol for PySimulation {
+    //     fn __repr__(&self) -> PyResult<String> {
+    //         Ok(fmt::format(format_args!(
+    //             "Simulation\n==========\nadjust displacement: {}\n\n{}\n\n",
+    //             self._data.update_propagator.is_some(),
+    //             self._data.system.as_ref().borrow().to_string(),
+    //             // self._data.propagator.to_string(),
+    //         )))
+    //     }
+    // }
 
-    fn remove_observer(&mut self, observer: &PyObserver) {
-        self._data.remove_observer(observer._data.clone())
-    }
+    // #[pyclass(name = "MolecularDynamics", unsendable)]
+    // pub struct MolecularDynamics {
+    //     _data: Simulation<VelocityVerlet>,
+    // }
 
-    fn deactivate_propagator_updates(&mut self) {
-        self._data.deactivate_propagator_updates()
-    }
+    // #[pymethods]
+    // impl MolecularDynamics {
+    //     #[new]
+    //     fn new(
+    //         System: PySystem,
+    //         propagator: PyVelocityVerlet,
+    //     ) -> Self {
+    //         Self {
+    //             _data: Simulation::new(System._data, propagator._data, None).unwrap(),
+    //         }
+    //     }
 
-    fn run(&mut self, steps: usize) {
-        self._data.run(steps)
-    }
+    //     fn add_observer(&mut self, observer: &PyObserver) {
+    //         self._data.add_observer(observer._data.clone())
+    //     }
+
+    //     fn remove_observer(&mut self, observer: &PyObserver) {
+    //         self._data.remove_observer(observer._data.clone())
+    //     }
+
+    //     fn run(&mut self, steps: usize) {
+    //         self._data.run(steps)
+    //     }
+    // }
+
+    // #[pyproto]
+    // impl PyObjectProtocol for MolecularDynamics {
+    //     fn __repr__(&self) -> PyResult<String> {
+    //         Ok(fmt::format(format_args!("Molecular Dynamics Simulation (NVE)\n==========\n")))
+    //     }
+    // }
 }
-
-#[pyproto]
-impl PyObjectProtocol for PySimulation {
-    fn __repr__(&self) -> PyResult<String> {
-        Ok(fmt::format(format_args!(
-            "Simulation\n==========\nadjust displacement: {}\n\n{}\n\n",
-            self._data.update_propagator.is_some(),
-            self._data.system.as_ref().borrow().to_string(),
-            // self._data.propagator.to_string(),
-        )))
-    }
-}
-
-// #[pyclass(name = "MolecularDynamics", unsendable)]
-// pub struct MolecularDynamics {
-//     _data: Simulation<VelocityVerlet>,
-// }
-
-// #[pymethods]
-// impl MolecularDynamics {
-//     #[new]
-//     fn new(
-//         system: PySystem,
-//         propagator: PyVelocityVerlet,
-//     ) -> Self {
-//         Self {
-//             _data: Simulation::new(system._data, propagator._data, None).unwrap(),
-//         }
-//     }
-
-//     fn add_observer(&mut self, observer: &PyObserver) {
-//         self._data.add_observer(observer._data.clone())
-//     }
-
-//     fn remove_observer(&mut self, observer: &PyObserver) {
-//         self._data.remove_observer(observer._data.clone())
-//     }
-
-//     fn run(&mut self, steps: usize) {
-//         self._data.run(steps)
-//     }
-// }
-
-// #[pyproto]
-// impl PyObjectProtocol for MolecularDynamics {
-//     fn __repr__(&self) -> PyResult<String> {
-//         Ok(fmt::format(format_args!("Molecular Dynamics Simulation (NVE)\n==========\n")))
-//     }
-// }

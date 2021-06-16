@@ -8,16 +8,21 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-ndarray = "0.14"
+ndarray = "0.15"
 rand = "0.8"
 rand_distr = "0.4.0"
-numpy = "0.13.1"
+numpy = { version = "0.13.2", optional = true }
 itertools = "0.10"
 chemfiles = "0.10"
+approx = "*"
 
 [dependencies.pyo3]
 version = "0.13.2"
-features = ["extension-module"]
+optional = true
 
 [profile.release]
 debug = true
+
+[features]
+python = ["pyo3/extension-module", "numpy"]
+default = ["python"]

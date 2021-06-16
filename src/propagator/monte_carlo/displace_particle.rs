@@ -1,7 +1,6 @@
 use super::MCMove;
 use crate::system::System;
 use crate::vec::Vec3;
-use pyo3::prelude::*;
 use rand::{
     distributions::{Distribution, Uniform},
     Rng,
@@ -10,6 +9,8 @@ use rand::{rngs::ThreadRng, thread_rng};
 use std::fmt;
 #[derive(Clone)]
 pub struct DisplaceParticle {
+    pub temperature: f64,
+    beta: f64,
     accepted_total: usize,
     attempted_total: usize,
     pub accepted: usize,
@@ -21,8 +22,10 @@ pub struct DisplaceParticle {
 }
 
 impl DisplaceParticle {
-    pub fn new(maximum_displacement: f64, target_acceptance: f64, nparticles: usize) -> Self {
+    pub fn new(maximum_displacement: f64, target_acceptance: f64, temperature: f64) -> Self {
         Self {
+            temperature,
+            beta: 1.0 / temperature,
             accepted_total: 0,
             attempted_total: 0,
             accepted: 0,
@@ -39,17 +42,19 @@ impl DisplaceParticle {
 }
 
 impl MCMove for DisplaceParticle {
-    fn initialize(&mut self, system: &System) {}
+    fn initialize(&mut self, _system: &System) {}
 
     fn apply(&mut self, system: &mut System) {
-        if system.nparticles == 0 {
+        if system.configuration.nparticles == 0 {
             return;
         }
         self.attempted += 1;
-        let i = self.rng.sample(Uniform::from(0..system.nparticles));
+        let i = self
+            .rng
+            .sample(Uniform::from(0..system.configuration.nparticles));
 
         let (energy_old, virial_old) = system.particle_energy_virial(i, None);
-        let position_old = system.positions[i];
+        let position_old = system.configuration.positions[i];
         let d = self
             .select_displacement
             .sample_iter(&mut self.rng)
@@ -57,17 +62,17 @@ impl MCMove for DisplaceParticle {
             .collect::<Vec<f64>>();
         let displacement = Vec3::new(d[0], d[1], d[2]);
         let mut position_new = position_old + displacement;
-        position_new.apply_pbc(system.box_length);
-        system.positions[i] = position_new;
+        position_new.apply_pbc(system.configuration.box_length);
+        system.configuration.positions[i] = position_new;
         let (energy_new, virial_new) = system.particle_energy_virial(i, None);
 
         let acceptance: f64 = self.rng.gen();
-        if acceptance < f64::exp(-system.beta * (energy_new - energy_old)) {
+        if acceptance < f64::exp(-self.beta * (energy_new - energy_old)) {
             self.accepted += 1;
             system.energy += energy_new - energy_old;
             system.virial += virial_new - virial_old
         } else {
-            system.positions[i] = position_old;
+            system.configuration.positions[i] = position_old;
         }
     }
 
@@ -84,8 +89,8 @@ impl MCMove for DisplaceParticle {
             q if q < 0.5 => 0.5,
             q => q,
         };
-        if self.maximum_displacement > 0.5 * system.box_length {
-            self.maximum_displacement = 0.5 * system.box_length;
+        if self.maximum_displacement > 0.5 * system.configuration.box_length {
+            self.maximum_displacement = 0.5 * system.configuration.box_length;
         }
         self.select_displacement =
             Uniform::new_inclusive(-self.maximum_displacement, self.maximum_displacement);
@@ -116,18 +121,24 @@ impl fmt::Display for DisplaceParticle {
     }
 }
 
-#[pyclass(name = "DisplaceParticle", unsendable)]
-#[derive(Clone)]
-pub struct PyDisplaceParticle {
-    pub _data: DisplaceParticle,
-}
+#[cfg(feature = "python")]
+pub mod python {
+    use super::*;
+    use pyo3::prelude::*;
 
-#[pymethods]
-impl PyDisplaceParticle {
-    #[new]
-    fn new(maximum_displacement: f64, target_acceptance: f64, nparticles: usize) -> Self {
-        Self {
-            _data: DisplaceParticle::new(maximum_displacement, target_acceptance, nparticles),
+    #[pyclass(name = "DisplaceParticle", unsendable)]
+    #[derive(Clone)]
+    pub struct PyDisplaceParticle {
+        pub _data: DisplaceParticle,
+    }
+
+    #[pymethods]
+    impl PyDisplaceParticle {
+        #[new]
+        fn new(maximum_displacement: f64, target_acceptance: f64, temperature: f64) -> Self {
+            Self {
+                _data: DisplaceParticle::new(maximum_displacement, target_acceptance, temperature),
+            }
         }
     }
 }
