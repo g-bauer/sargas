@@ -50,18 +50,18 @@ impl InsertDeleteParticle {
         }
         let (energy, virial) =
             system.particle_energy_virial(system.configuration.nparticles - 1, None);
-        let boltzmann_factor =
-            self.beta * (self.chemical_potential - energy) / system.configuration.density().ln();
-        match metropolis(boltzmann_factor, &mut self.rng) {
-            MoveProposal::Accepted => {
-                self.accepted += 1;
-                system.energy += energy;
-                system.virial += virial;
-            }
-            MoveProposal::Rejected => {
-                system.configuration.positions.pop();
-                system.configuration.nparticles = system.configuration.positions.len();
-            }
+
+        let acceptance: f64 = self.rng.gen();
+        if acceptance
+            < f64::exp(-self.beta * (energy - self.chemical_potential))
+                / system.configuration.density()
+        {
+            self.accepted += 1;
+            system.energy += energy;
+            system.virial += virial;
+        } else {
+            system.configuration.positions.pop();
+            system.configuration.nparticles = system.configuration.positions.len();
         }
     }
 
@@ -73,20 +73,20 @@ impl InsertDeleteParticle {
             .rng
             .sample(Uniform::from(0..system.configuration.nparticles));
         let (energy, virial) = system.particle_energy_virial(i, None);
-        let boltzmann_factor = (-self.beta * (self.chemical_potential + energy)).exp()
-            * system.configuration.density();
-        match metropolis(boltzmann_factor, &mut self.rng) {
-            MoveProposal::Accepted => {
-                self.accepted += 1;
-                system.energy -= energy;
-                system.virial -= virial;
-                system.configuration.positions.remove(i);
-                system.configuration.nparticles = system.configuration.positions.len();
-            }
-            MoveProposal::Rejected => {
-                system.configuration.positions.pop();
-                system.configuration.nparticles = system.configuration.positions.len();
-            }
+
+        let acceptance: f64 = self.rng.gen();
+        if acceptance
+            < (-self.beta * (self.chemical_potential - energy)).exp()
+                * system.configuration.density()
+        {
+            self.accepted += 1;
+            system.energy -= energy;
+            system.virial -= virial;
+            system.configuration.positions.remove(i);
+            system.configuration.nparticles = system.configuration.positions.len();
+        } else {
+            system.configuration.positions.pop();
+            system.configuration.nparticles = system.configuration.positions.len();
         }
     }
 }
