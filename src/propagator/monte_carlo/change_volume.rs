@@ -1,4 +1,4 @@
-use super::{metropolis, MCMove, MoveProposal};
+use super::MCMove;
 use crate::system::System;
 use rand::{distributions::Uniform, Rng};
 use rand::{rngs::ThreadRng, thread_rng};
@@ -56,7 +56,7 @@ impl MCMove for ChangeVolume {
         self.attempted += 1;
 
         // Store current values for volume and energy
-        let energy_old = system.energy(); // todo: replace with currently stored value for energy
+        let energy_old = system.energy;
         let volume_old = system.configuration.volume();
         let box_length_old = system.configuration.box_length;
 
@@ -71,17 +71,6 @@ impl MCMove for ChangeVolume {
             + (system.configuration.nparticles + 1) as f64
                 * (system.configuration.volume() / volume_old).ln();
 
-        // dbg!(boltzmann_factor);
-        // match metropolis(boltzmann_factor, &mut self.rng) {
-        //     MoveProposal::Accepted => {
-        //         self.accepted += 1;
-        //         system.energy = energy_new;
-        //         system.virial = virial_new;
-        //     }
-        //     MoveProposal::Rejected => {
-        //         system.rescale_box_length(box_length_old);
-        //     }
-        // }
         let acceptance: f64 = self.rng.gen();
         if acceptance < f64::exp(boltzmann_factor) {
             self.accepted += 1;

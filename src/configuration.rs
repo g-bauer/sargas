@@ -188,12 +188,40 @@ impl fmt::Display for Configuration {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+
+    #[test]
+    fn rescale_box_length() {
+        let mut configuration = Configuration {
+            nparticles: 1,
+            positions: vec![Vec3::new(1.0, 1.0, 1.0)],
+            velocities: vec![Vec3::new(1.0, 0.0, 0.0)],
+            forces: vec![Vec3::new(1.0, 0.0, 0.0)],
+            box_length: 3.0,
+            max_nparticles: 1,
+        };
+        configuration.rescale_box_length(6.0);
+        assert_relative_eq!(configuration.positions[0].x, 2.0);
+        assert_relative_eq!(configuration.positions[0].y, 2.0);
+        assert_relative_eq!(configuration.positions[0].z, 2.0);
+        assert_relative_eq!(configuration.volume(), 6.0f64.powi(3));
+        configuration.rescale_box_length(3.0);
+        assert_relative_eq!(configuration.positions[0].x, 1.0);
+        assert_relative_eq!(configuration.positions[0].y, 1.0);
+        assert_relative_eq!(configuration.positions[0].z, 1.0);
+        assert_relative_eq!(configuration.volume(), 3.0f64.powi(3));
+    }
+}
+
 #[cfg(feature = "python")]
 pub mod python {
+    use super::*;
     use numpy::{IntoPyArray, PyArray2};
     use pyo3::prelude::*;
     use pyo3::PyObjectProtocol;
-    use super::*;
 
     #[pyclass(name = "Configuration", unsendable)]
     #[derive(Clone)]

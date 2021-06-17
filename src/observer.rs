@@ -85,8 +85,8 @@ fn widom_insertion(system: &System) -> HashMap<String, f64> {
 
 #[cfg(feature = "python")]
 pub mod python {
-    use pyo3::prelude::*;
     use super::*;
+    use pyo3::prelude::*;
 
     #[pyclass(name = "Observer", unsendable)]
     pub struct PyObserver {

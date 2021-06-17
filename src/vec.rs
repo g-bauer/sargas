@@ -53,6 +53,11 @@ impl Vec3 {
     }
 
     #[inline]
+    pub fn norm2(&self) -> f64 {
+        (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
+    }
+
+    #[inline]
     pub fn apply_pbc(&mut self, box_length: f64) {
         self.x += if self.x < 0.0 {
             box_length

@@ -203,12 +203,19 @@ impl System {
         forces
     }
 
+    #[inline]
     pub fn volume(&self) -> f64 {
         self.configuration.volume()
     }
 
+    #[inline]
     pub fn density(&self) -> f64 {
         self.configuration.density()
+    }
+
+    #[inline]
+    pub fn residual_pressure(&self) -> f64 {
+        self.virial / (3.0 * self.volume()) + self.potential.pressure_tail(self.density())
     }
 }
 

@@ -85,7 +85,7 @@ impl Potential for LennardJones {
                 * density
                 * self.epsilon
                 * self.sigma.powi(3)
-                * (1.0 / 3.0 * (s3.powi(3) - s3))
+                * (1.0 / 3.0 * s3.powi(3) - s3)
                 + 2.0 * PI * nparticles as f64 * density / 3.0
                     * self.energy_shift
                     * self.rc2.sqrt().powi(3)
