@@ -63,15 +63,16 @@ fn pressure_sample(system: &System) -> HashMap<String, f64> {
 fn properties_sample(system: &System) -> HashMap<String, f64> {
     // let p_ig = system.configuration.density() / system.beta;
     let volume = system.configuration.volume();
-    let pressure = system.virial / (3.0 * volume)
+    let (u, v) = system.energy_virial();
+    let pressure = v / (3.0 * volume)
         + system
             .potential
             .pressure_tail(system.configuration.density());
     let mut m = HashMap::new();
     m.insert("pressure".into(), pressure);
     m.insert("volume".into(), volume);
-    m.insert("energy".into(), system.energy);
-    m.insert("virial".into(), system.virial);
+    m.insert("energy".into(), u);
+    m.insert("virial".into(), v);
     m.insert("density".into(), system.configuration.density());
     m.insert("nparticles".into(), system.configuration.nparticles as f64);
     m

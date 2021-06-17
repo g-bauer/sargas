@@ -16,13 +16,13 @@ pub struct ChangeVolume {
     pub attempted: usize,
     pub target_acceptance: f64,
     pub rng: ThreadRng,
-    pub maximum_displacement: f64,
-    pub select_displacement: Uniform<f64>,
+    pub maximum_scaling: f64,
+    pub select_scaling: Uniform<f64>,
 }
 
 impl ChangeVolume {
     pub fn new(
-        maximum_displacement: f64,
+        maximum_scaling: f64,
         target_acceptance: f64,
         pressure: f64,
         temperature: f64,
@@ -37,11 +37,8 @@ impl ChangeVolume {
             attempted: 0,
             target_acceptance,
             rng: thread_rng(),
-            maximum_displacement,
-            select_displacement: Uniform::new_inclusive(
-                -maximum_displacement,
-                maximum_displacement,
-            ),
+            maximum_scaling,
+            select_scaling: Uniform::new_inclusive(1.0 - maximum_scaling, 1.0 + maximum_scaling),
         }
     }
 }
@@ -60,16 +57,17 @@ impl MCMove for ChangeVolume {
         let volume_old = system.configuration.volume();
         let box_length_old = system.configuration.box_length;
 
-        // Change (logarithmic) volume
-        let delta_ln_v = self.rng.sample(&self.select_displacement);
-        let delta_v = delta_ln_v.exp();
-        let box_length_new = (volume_old + delta_v).cbrt();
+        // Change (logarithmic) box length
+        let delta_ln_l = self.rng.sample(&self.select_scaling);
+        let delta_l = delta_ln_l.exp();
+        let box_length_new = box_length_old * delta_l;
         system.configuration.rescale_box_length(box_length_new);
+        let volume_new = box_length_new.powi(3);
         let (energy_new, virial_new) = system.energy_virial();
 
-        let boltzmann_factor = -self.beta * (energy_new - energy_old + self.pressure * delta_v)
-            + (system.configuration.nparticles + 1) as f64
-                * (system.configuration.volume() / volume_old).ln();
+        let boltzmann_factor = -self.beta
+            * (energy_new - energy_old + self.pressure * (volume_new - volume_old))
+            + (system.configuration.nparticles + 1) as f64 * (volume_new / volume_old).ln();
 
         let acceptance: f64 = self.rng.gen();
         if acceptance < f64::exp(boltzmann_factor) {
@@ -89,16 +87,13 @@ impl MCMove for ChangeVolume {
         }
         let current_acceptance = self.accepted as f64 / self.attempted as f64;
         let quotient = current_acceptance / self.target_acceptance;
-        self.maximum_displacement *= match quotient {
+        self.maximum_scaling *= match quotient {
             q if q > 1.5 => 1.5,
             q if q < 0.5 => 0.5,
             q => q,
         };
-        if self.maximum_displacement > 0.5 * system.configuration.box_length {
-            self.maximum_displacement = 0.5 * system.configuration.box_length;
-        }
-        self.select_displacement =
-            Uniform::new_inclusive(-self.maximum_displacement, self.maximum_displacement);
+        self.select_scaling =
+            Uniform::new_inclusive(1.0 - self.maximum_scaling, 1.0 + self.maximum_scaling);
         self.attempted = 0;
         self.accepted = 0;
     }
@@ -120,8 +115,8 @@ impl fmt::Display for ChangeVolume {
         };
         write!(
             f,
-            "Particle Displacement Move\n==========================\nattempts: {}\naccepted: {}\naccepted: {:.2} %\ncurrent displacement: {:.3}",
-            self.attempted_total, self.accepted_total, acceptance, self.maximum_displacement
+            "Volume Change Move\n==========================\nattempts: {}\naccepted: {}\naccepted: {:.2} %\ncurrent scaling: {:.3}",
+            self.attempted_total, self.accepted_total, acceptance, self.maximum_scaling
         )
     }
 }

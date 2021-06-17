@@ -295,6 +295,11 @@ pub mod python {
             self._data.as_ref().borrow().energy
         }
 
+        #[getter]
+        fn get_virial(&self) -> f64 {
+            self._data.as_ref().borrow().virial
+        }
+
         fn compute_energy(&self) -> f64 {
             self._data.as_ref().borrow().energy()
         }
