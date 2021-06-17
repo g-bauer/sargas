@@ -71,6 +71,14 @@ Finally, it is useful to create an Ipython kernel for our environment for easy u
 python -m ipykernel install --user --name sargas --display-name "sargas"
 ```
 
+### Running tests
+
+To run the tests, deactivate the default features (that is, the python related crates)
+
+```
+cargo test --release --no-default-features
+```
+
 ---
 
 [**sargas**](https://en.wikipedia.org/wiki/Theta_Scorpii) is an evolved bright giant and one of the brightest stars in the night sky.
