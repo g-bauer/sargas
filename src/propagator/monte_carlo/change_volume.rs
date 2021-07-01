@@ -38,7 +38,7 @@ impl ChangeVolume {
             target_acceptance,
             rng: thread_rng(),
             maximum_scaling,
-            select_scaling: Uniform::new_inclusive(1.0 - maximum_scaling, 1.0 + maximum_scaling),
+            select_scaling: Uniform::new_inclusive(-1.0 * maximum_scaling, 1.0 * maximum_scaling),
         }
     }
 }
@@ -57,7 +57,6 @@ impl MCMove for ChangeVolume {
         let volume_old = system.configuration.volume();
         let box_length_old = system.configuration.box_length;
 
-        // Change (logarithmic) box length
         let delta_ln_l = self.rng.sample(&self.select_scaling);
         let delta_l = delta_ln_l.exp();
         let box_length_new = box_length_old * delta_l;
@@ -67,7 +66,7 @@ impl MCMove for ChangeVolume {
 
         let boltzmann_factor = -self.beta
             * (energy_new - energy_old + self.pressure * (volume_new - volume_old))
-            + (system.configuration.nparticles + 1) as f64 * (volume_new / volume_old).ln();
+            + (system.configuration.nparticles + 1) as f64 * (volume_old / volume_new).ln();
 
         let acceptance: f64 = self.rng.gen();
         if acceptance < f64::exp(boltzmann_factor) {
@@ -93,7 +92,7 @@ impl MCMove for ChangeVolume {
             q => q,
         };
         self.select_scaling =
-            Uniform::new_inclusive(1.0 - self.maximum_scaling, 1.0 + self.maximum_scaling);
+            Uniform::new_inclusive(-1.0 * self.maximum_scaling, 1.0 * self.maximum_scaling);
         self.attempted = 0;
         self.accepted = 0;
     }
