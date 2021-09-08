@@ -183,6 +183,26 @@ impl System {
         // self.velocities = maxwell_boltzmann(self.temperature, self.configuration.nparticles);
     }
 
+    pub fn compute_forces_inplace(&mut self) {
+        self.configuration
+            .forces
+            .iter_mut()
+            .for_each(|f| *f = Vec3::zero());
+        for i in 0..self.configuration.nparticles - 1 {
+            let position_i = self.configuration.positions[i];
+            for j in i + 1..self.configuration.nparticles {
+                let mut rij = self.configuration.positions[j] - position_i;
+                self.configuration.nearest_image(&mut rij);
+                let r2 = rij.dot(&rij);
+                if r2 <= self.potential.rc2() {
+                    let fij = self.potential.virial(r2) / r2;
+                    self.configuration.forces[i] += fij * rij;
+                    self.configuration.forces[j] -= fij * rij;
+                }
+            }
+        }
+    }
+
     pub fn compute_forces(&self) -> Vec<Vec3> {
         let mut forces: Vec<Vec3> = (0..self.configuration.nparticles)
             .map(|_| Vec3::zero())

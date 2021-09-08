@@ -13,17 +13,26 @@ pub trait Potential {
 
 #[derive(Debug)]
 pub struct LennardJones {
+    /// size parameter (diameter)
     sigma: f64,
+    /// energetic parameter
     epsilon: f64,
+    /// sigma to the power 6
     s6: f64,
+    /// epsilon times 4
     e4: f64,
+    /// if non-zero, shifts the potential to be zero at cutoff distance
     energy_shift: f64,
+    /// distance at which energy is considered too high
     squared_overlap_distance: f64,
+    /// controls if tail corrections are computed
     tail_correction: bool,
+    /// squared cutoff distance
     rc2: f64,
 }
 
 impl LennardJones {
+    /// Create a new potential without energy shift and possibly tail corrections.
     pub fn new(sigma: f64, epsilon: f64, rc: f64, tail_correction: bool) -> Self {
         let squared_overlap_distance = 0.56 * sigma.powi(2); // approx 100*epsilon
         Self {
@@ -38,6 +47,7 @@ impl LennardJones {
         }
     }
 
+    /// Create a new potential with energy shift and possibly tail corrections.
     pub fn new_shifted(sigma: f64, epsilon: f64, rc: f64, tail_correction: bool) -> Self {
         let squared_overlap_distance = (2.0f64 / 11.0).powf(1.0 / 3.0) * sigma.powi(2);
         Self {
