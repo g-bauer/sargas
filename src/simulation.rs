@@ -6,10 +6,11 @@ use std::rc::Rc;
 use std::{borrow::Borrow, cell::RefCell};
 
 pub struct Simulation {
+    pub step: usize,
     pub propagator: Rc<RefCell<dyn Propagator>>,
     pub system: Rc<RefCell<System>>,
     pub update_propagator: Option<usize>,
-    pub observers: HashMap<String, Rc<RefCell<Observer>>>,
+    pub observers: HashMap<String, Rc<RefCell<dyn Observer>>>,
 }
 
 impl Simulation {
@@ -24,6 +25,7 @@ impl Simulation {
             }
         }
         Ok(Self {
+            step: 0,
             propagator,
             system,
             update_propagator: update_propagator,
@@ -31,13 +33,13 @@ impl Simulation {
         })
     }
 
-    pub fn add_observer(&mut self, observer: Rc<RefCell<Observer>>) {
+    pub fn add_observer(&mut self, observer: Rc<RefCell<dyn Observer>>) {
         self.observers
-            .insert(observer.as_ref().borrow().name.clone(), observer.clone());
+            .insert(observer.as_ref().borrow().name(), observer.clone());
     }
 
-    pub fn remove_observer(&mut self, observer: Rc<RefCell<Observer>>) {
-        self.observers.remove(&observer.as_ref().borrow().name);
+    pub fn remove_observer(&mut self, observer: Rc<RefCell<dyn Observer>>) {
+        self.observers.remove(&observer.as_ref().borrow().name());
     }
 
     pub fn print_observers(&self) -> Vec<String> {
@@ -51,21 +53,23 @@ impl Simulation {
     pub fn run(&mut self, steps: usize) {
         let mut s = self.system.borrow_mut();
         s.recompute();
-        for i in 1..=steps {
+        for _ in 1..=steps {
+            self.step += 1;
             self.propagator.borrow_mut().propagate(&mut s);
 
             match self.update_propagator {
-                Some(f) if i % f == 0 => self.propagator.borrow_mut().adjust(&s),
+                Some(f) if self.step % f == 0 => self.propagator.borrow_mut().adjust(&s),
                 _ => (),
             }
 
             {
+                let i = self.step;
                 self.observers.iter_mut().for_each(|(_, v)| {
                     let mut o = v.borrow_mut();
-                    if i % o.frequency == 0 {
+                    if i % o.frequency() == 0 {
                         o.sample(&s)
                     }
-                })
+                });
             }
         }
     }

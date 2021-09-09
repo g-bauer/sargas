@@ -1,88 +1,219 @@
 use crate::system::System;
+use ndarray::ArrayView1;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-pub struct Observer {
-    pub name: String,
-    pub f: Box<dyn Fn(&System) -> HashMap<String, f64>>,
-    pub frequency: usize,
-    pub property: HashMap<String, Vec<f64>>,
+pub trait Observer {
+    fn name(&self) -> String;
+    fn sample(&mut self, system: &System);
+    fn frequency(&self) -> usize;
+    fn property(&self) -> HashMap<String, Vec<f64>>;
 }
 
-impl Observer {
-    pub fn new(
-        name: String,
-        f: Box<dyn Fn(&System) -> HashMap<String, f64>>,
-        frequency: usize,
-        size: Option<usize>,
-    ) -> Self {
+pub struct PotentialEnergyObserver {
+    data: Vec<f64>,
+    frequency: usize,
+}
+
+impl PotentialEnergyObserver {
+    pub fn new(frequency: usize, capacity: Option<usize>) -> Self {
         Self {
-            name,
-            f,
+            data: Vec::with_capacity(capacity.unwrap_or(100)),
             frequency,
-            property: HashMap::with_capacity(size.unwrap_or(1000)),
         }
     }
+}
 
-    pub fn sample(&mut self, system: &System) {
-        let p = self.f.as_ref()(system);
-        if self.property.is_empty() {
-            p.iter().for_each(|(k, &v)| {
-                self.property.insert(k.clone(), vec![v]);
-            })
-        } else {
-            p.iter().for_each(|(k, &v)| {
-                self.property.get_mut(k).unwrap().push(v);
-            })
+impl Observer for PotentialEnergyObserver {
+    fn name(&self) -> String {
+        String::from("energy")
+    }
+    fn sample(&mut self, system: &System) {
+        self.data.push(system.energy)
+    }
+    fn frequency(&self) -> usize {
+        self.frequency
+    }
+    fn property(&self) -> HashMap<String, Vec<f64>> {
+        let mut hm = HashMap::new();
+        hm.insert(String::from("energy"), self.data.clone());
+        hm
+    }
+}
+
+pub struct PressureObserver {
+    data: Vec<f64>,
+    frequency: usize,
+}
+
+impl PressureObserver {
+    pub fn new(frequency: usize, capacity: Option<usize>) -> Self {
+        Self {
+            data: Vec::with_capacity(capacity.unwrap_or(100)),
+            frequency,
         }
     }
+}
 
-    pub fn get(&self) -> HashMap<String, Vec<f64>> {
-        self.property.clone()
+impl Observer for PressureObserver {
+    fn name(&self) -> String {
+        String::from("pressure")
+    }
+
+    fn sample(&mut self, system: &System) {
+        let pressure = system.virial / (3.0 * system.configuration.volume())
+            + system
+                .potential
+                .pressure_tail(system.configuration.density());
+        self.data.push(pressure)
+    }
+
+    fn frequency(&self) -> usize {
+        self.frequency
+    }
+
+    fn property(&self) -> HashMap<String, Vec<f64>> {
+        let mut hm = HashMap::new();
+        hm.insert(self.name(), self.data.clone());
+        hm
     }
 }
 
-fn energy_sample(system: &System) -> HashMap<String, f64> {
-    let mut m = HashMap::new();
-    m.insert("energy".into(), system.energy);
-    m
+pub struct PropertiesObserver {
+    volume: Vec<f64>,
+    pressure: Vec<f64>,
+    energy: Vec<f64>,
+    virial: Vec<f64>,
+    density: Vec<f64>,
+    nparticles: Vec<f64>,
+    frequency: usize,
 }
 
-fn pressure_sample(system: &System) -> HashMap<String, f64> {
-    // let p_ig = system.configuration.density() / system.beta;
-    let pressure = system.virial / (3.0 * system.configuration.volume())
-        + system
-            .potential
-            .pressure_tail(system.configuration.density());
-    let mut m = HashMap::new();
-    m.insert("pressure".into(), pressure);
-    m
+impl PropertiesObserver {
+    pub fn new(frequency: usize, capacity: Option<usize>) -> Self {
+        Self {
+            volume: Vec::with_capacity(capacity.unwrap_or(100)),
+            pressure: Vec::with_capacity(capacity.unwrap_or(100)),
+            energy: Vec::with_capacity(capacity.unwrap_or(100)),
+            virial: Vec::with_capacity(capacity.unwrap_or(100)),
+            density: Vec::with_capacity(capacity.unwrap_or(100)),
+            nparticles: Vec::with_capacity(capacity.unwrap_or(100)),
+            frequency,
+        }
+    }
 }
 
-fn properties_sample(system: &System) -> HashMap<String, f64> {
-    // let p_ig = system.configuration.density() / system.beta;
-    let volume = system.configuration.volume();
-    let (u, v) = system.energy_virial();
-    let pressure = v / (3.0 * volume)
-        + system
-            .potential
-            .pressure_tail(system.configuration.density());
-    let mut m = HashMap::new();
-    m.insert("pressure".into(), pressure);
-    m.insert("volume".into(), volume);
-    m.insert("energy".into(), u);
-    m.insert("virial".into(), v);
-    m.insert("density".into(), system.configuration.density());
-    m.insert("nparticles".into(), system.configuration.nparticles as f64);
-    m
+impl Observer for PropertiesObserver {
+    fn name(&self) -> String {
+        String::from("properties")
+    }
+
+    fn sample(&mut self, system: &System) {
+        let volume = system.configuration.volume();
+        let (u, v) = system.energy_virial();
+        let pressure = v / (3.0 * volume)
+            + system
+                .potential
+                .pressure_tail(system.configuration.density());
+        self.pressure.push(pressure);
+        self.volume.push(volume);
+        self.energy.push(u);
+        self.virial.push(v);
+        self.density.push(system.configuration.density());
+        self.nparticles.push(system.configuration.nparticles as f64);
+    }
+
+    fn frequency(&self) -> usize {
+        self.frequency
+    }
+
+    fn property(&self) -> HashMap<String, Vec<f64>> {
+        let mut hm = HashMap::new();
+        hm.insert(String::from("potential_energy"), self.energy.clone());
+        hm.insert(String::from("pressure"), self.pressure.clone());
+        hm.insert(String::from("volume"), self.volume.clone());
+        hm.insert(String::from("virial"), self.virial.clone());
+        hm.insert(String::from("density"), self.density.clone());
+        hm.insert(String::from("nparticles"), self.nparticles.clone());
+        hm
+    }
 }
 
-fn widom_insertion(system: &System) -> HashMap<String, f64> {
-    let mut m = HashMap::new();
-    m.insert("mu".into(), system.ghost_particle_energy());
-    m
+fn logsumexp(x: ArrayView1<f64>) -> f64 {
+    let x_max = x.iter().cloned().reduce(f64::max).unwrap();
+    x_max + x.mapv(|x_i| (x_i - x_max).exp()).sum().ln()
 }
+
+pub struct WidomObserver {
+    data: Vec<Vec<f64>>,
+    inserted: u32,
+    frequency: usize,
+    beta: f64,
+    ninsertions: usize,
+}
+
+impl WidomObserver {
+    pub fn new(
+        frequency: usize,
+        temperature: f64,
+        ninsertions: usize,
+        replicas: Option<usize>,
+        capacity: Option<usize>,
+    ) -> Self {
+        let data = (0..replicas.unwrap_or(1))
+            .map(|_| Vec::with_capacity(capacity.unwrap_or(100)))
+            .collect();
+        Self {
+            data,
+            inserted: 0,
+            frequency,
+            beta: 1.0 / temperature,
+            ninsertions,
+        }
+    }
+}
+
+impl Observer for WidomObserver {
+    fn name(&self) -> String {
+        String::from("widom")
+    }
+
+    fn sample(&mut self, system: &System) {
+        let (b, n, i) = (self.beta, self.ninsertions, self.inserted);
+        self.data.iter_mut().for_each(|di| {
+            let sum_exp = system.ghost_particle_energy_sum(b, n);
+            if let Some(l) = di.last() {
+                di.push((l * i as f64 + sum_exp) / (i as f64 + n as f64))
+            } else {
+                di.push(sum_exp / n as f64)
+            }
+        });
+        self.inserted += self.ninsertions as u32;
+    }
+
+    fn frequency(&self) -> usize {
+        self.frequency
+    }
+
+    fn property(&self) -> HashMap<String, Vec<f64>> {
+        let mut hm = HashMap::new();
+        self.data.iter().enumerate().for_each(|(i, di)| {
+            hm.insert(format!("mu{}", i), di.iter().map(|di| -di.ln()).collect());
+        });
+        hm
+    }
+}
+
+// fn widom_insertion(system: &System) -> HashMap<String, f64> {
+//     let beta = 0.0;
+//     let ninsertions = 0;
+//     let mut m = HashMap::new();
+//     let du = -beta * system.ghost_particle_energy(ninsertions);
+//     let mu = -(logsumexp(du.view())) + (ninsertions as f64).ln();
+//     m.insert("beta_mu".into(), mu);
+//     m
+// }
 
 #[cfg(feature = "python")]
 pub mod python {
@@ -91,62 +222,56 @@ pub mod python {
 
     #[pyclass(name = "Observer", unsendable)]
     pub struct PyObserver {
-        pub _data: Rc<RefCell<Observer>>,
+        pub _data: Rc<RefCell<dyn Observer>>,
     }
 
     #[pymethods]
     impl PyObserver {
         #[staticmethod]
-        fn energy(name: String, frequency: usize) -> Self {
+        fn energy(frequency: usize, capacity: Option<usize>) -> Self {
             Self {
-                _data: Rc::new(RefCell::new(Observer::new(
-                    name,
-                    Box::new(energy_sample),
-                    frequency,
-                    None,
+                _data: Rc::new(RefCell::new(PotentialEnergyObserver::new(
+                    frequency, capacity,
                 ))),
             }
         }
 
         #[staticmethod]
-        fn pressure(frequency: usize) -> Self {
+        fn pressure(frequency: usize, capacity: Option<usize>) -> Self {
             Self {
-                _data: Rc::new(RefCell::new(Observer::new(
-                    "pressure".to_owned(),
-                    Box::new(pressure_sample),
-                    frequency,
-                    None,
-                ))),
+                _data: Rc::new(RefCell::new(PressureObserver::new(frequency, capacity))),
             }
         }
 
         #[staticmethod]
-        fn properties(frequency: usize) -> Self {
+        fn properties(frequency: usize, capacity: Option<usize>) -> Self {
             Self {
-                _data: Rc::new(RefCell::new(Observer::new(
-                    "properties".to_owned(),
-                    Box::new(properties_sample),
-                    frequency,
-                    None,
-                ))),
+                _data: Rc::new(RefCell::new(PropertiesObserver::new(frequency, capacity))),
             }
         }
 
         #[staticmethod]
-        fn widom_insertion(frequency: usize) -> Self {
+        fn widom(
+            frequency: usize,
+            temperature: f64,
+            ninsertions: usize,
+            repeat: Option<usize>,
+            capacity: Option<usize>,
+        ) -> Self {
             Self {
-                _data: Rc::new(RefCell::new(Observer::new(
-                    "widom".to_owned(),
-                    Box::new(widom_insertion),
+                _data: Rc::new(RefCell::new(WidomObserver::new(
                     frequency,
-                    None,
+                    temperature,
+                    ninsertions,
+                    repeat,
+                    capacity,
                 ))),
             }
         }
 
         #[getter]
         fn get_data(&self) -> PyResult<HashMap<String, Vec<f64>>> {
-            Ok(self._data.borrow().get())
+            Ok(self._data.borrow().property())
         }
     }
 }

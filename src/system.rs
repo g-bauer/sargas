@@ -3,7 +3,7 @@ use crate::potential::Potential;
 use crate::vec::Vec3;
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
-use ndarray::Array2;
+use ndarray::{Array1, Array2};
 
 use rand::{distributions::Uniform, thread_rng};
 use rand_distr::Distribution;
@@ -87,27 +87,58 @@ impl System {
         (energy, virial)
     }
 
-    pub fn ghost_particle_energy(&self) -> f64 {
+    pub fn ghost_particle_energy_array(&self, ninsertions: usize) -> Array1<f64> {
+        if self.configuration.nparticles == 0 {
+            return Array1::from_elem(1, 0.0);
+        }
+        let mut rng = thread_rng();
+        let dist = Uniform::new(0.0, self.configuration.box_length);
+
+        Array1::from_shape_fn(ninsertions, |_| {
+            let ri = Vec3::new(
+                dist.sample(&mut rng),
+                dist.sample(&mut rng),
+                dist.sample(&mut rng),
+            );
+            self.configuration.positions.iter().fold(0.0, |energy, rj| {
+                energy + {
+                    let rij = (rj - ri).nearest_image(self.configuration.box_length);
+                    let r2 = rij.dot(&rij);
+                    if r2 <= self.potential.rc2() {
+                        self.potential.energy(r2)
+                    } else {
+                        0.0
+                    }
+                }
+            })
+        })
+    }
+
+    pub fn ghost_particle_energy_sum(&self, beta: f64, ninsertions: usize) -> f64 {
         if self.configuration.nparticles == 0 {
             return 0.0;
         }
         let mut rng = thread_rng();
         let dist = Uniform::new(0.0, self.configuration.box_length);
-        let ri = Vec3::new(
-            dist.sample(&mut rng),
-            dist.sample(&mut rng),
-            dist.sample(&mut rng),
-        );
-        self.configuration.positions.iter().fold(0.0, |energy, rj| {
-            energy + {
-                let rij = (rj - ri).nearest_image(self.configuration.box_length);
-                let r2 = rij.dot(&rij);
-                if r2 <= self.potential.rc2() {
-                    self.potential.energy(r2)
-                } else {
-                    0.0
+
+        (0..ninsertions).fold(0.0, |acc, _| {
+            let ri = Vec3::new(
+                dist.sample(&mut rng),
+                dist.sample(&mut rng),
+                dist.sample(&mut rng),
+            );
+            let energy = self.configuration.positions.iter().fold(0.0, |energy, rj| {
+                energy + {
+                    let rij = (rj - ri).nearest_image(self.configuration.box_length);
+                    let r2 = rij.dot(&rij);
+                    if r2 <= self.potential.rc2() {
+                        self.potential.energy(r2)
+                    } else {
+                        0.0
+                    }
                 }
-            }
+            });
+            acc + (-beta * energy).exp()
         })
     }
 
