@@ -22,10 +22,15 @@ fn sargas(_: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<simulation::python::PySimulation>()?;
     m.add_class::<configuration::python::PyConfiguration>()?;
     m.add_class::<system::python::PySystem>()?;
-    m.add_class::<propagator::monte_carlo::displace_particle::python::PyDisplaceParticle>()?;
+
+    // Monte Carlo
     m.add_class::<propagator::monte_carlo::python::PyMonteCarlo>()?;
     m.add_class::<propagator::monte_carlo::python::PyMCMove>()?;
-    // m.add_class::<propagator::velocity_verlet::PyVelocityVerlet>()?;
+
+    // Molecular Dynamics
+    m.add_class::<propagator::molecular_dynamics::python::PyMolecularDynamics>()?;
+    m.add_class::<propagator::molecular_dynamics::python::PyIntegrator>()?;
+
     m.add_class::<potential::python::PyPotential>()?;
     m.add_class::<observer::python::PyObserver>()?;
     Ok(())

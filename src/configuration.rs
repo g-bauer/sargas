@@ -9,14 +9,19 @@ use std::path::Path;
 pub struct Configuration {
     pub nparticles: usize,
     pub positions: Vec<Vec3>,
-    pub velocities: Vec<Vec3>,
+    pub velocities: Option<Vec<Vec3>>,
     pub forces: Vec<Vec3>,
     pub box_length: f64,
     pub max_nparticles: usize,
 }
 
 impl Configuration {
-    pub fn with_lattice(nparticles: usize, density: f64, max_nparticles: usize) -> Self {
+    pub fn lattice(
+        nparticles: usize,
+        density: f64,
+        max_nparticles: usize,
+        initial_temperature: Option<f64>,
+    ) -> Self {
         let mut positions: Vec<Vec3> = (0..nparticles).map(|_| Vec3::zero()).collect();
         let box_length = f64::cbrt(nparticles as f64 / density);
         let mut n = (nparticles as f64).powf(1.0 / 3.0) as usize + 1;
@@ -41,7 +46,11 @@ impl Configuration {
                 }
             }
         }
-        let velocities: Vec<Vec3> = (0..nparticles).map(|_| Vec3::zero()).collect();
+        let velocities = if let Some(t) = initial_temperature {
+            Some(maxwell_boltzmann(t, nparticles))
+        } else {
+            None
+        };
         let forces: Vec<Vec3> = (0..nparticles).map(|_| Vec3::zero()).collect();
 
         Self {
@@ -104,9 +113,9 @@ impl Configuration {
         let nparticles = frame.size();
         let positions = frame.positions().into_iter().map(Vec3::from).collect();
         let velocities = if frame.has_velocities() {
-            frame.velocities().into_iter().map(Vec3::from).collect()
+            Some(frame.velocities().into_iter().map(Vec3::from).collect())
         } else {
-            Vec::with_capacity(max_nparticles)
+            None
         };
         frame.set_cell(&UnitCell::new([box_length, box_length, box_length]));
         let box_length = frame.cell().lengths()[0];
@@ -154,8 +163,22 @@ impl Configuration {
         Array2::from_shape_fn((self.nparticles, 3), |(i, j)| self.positions[i][j])
     }
 
-    pub fn velocities(&self) -> Array2<f64> {
-        Array2::from_shape_fn((self.nparticles, 3), |(i, j)| self.velocities[i][j])
+    pub fn velocities(&self) -> Option<Array2<f64>> {
+        if let Some(v) = self.velocities.as_ref() {
+            Some(Array2::from_shape_fn((self.nparticles, 3), |(i, j)| {
+                v[i][j]
+            }))
+        } else {
+            None
+        }
+    }
+
+    pub fn temperature_from_velocities(&self) -> Option<f64> {
+        let squared_veloicty = self
+            .velocities
+            .as_ref()
+            .map(|v| v.iter().fold(0.0, |acc, vi| acc + vi.dot(vi)));
+        squared_veloicty.map(|v2| v2 / (3.0 * self.nparticles as f64))
     }
 
     pub fn forces(&self) -> Array2<f64> {
@@ -163,7 +186,7 @@ impl Configuration {
     }
 }
 
-fn maxwell_boltzmann(temperature: f64, nparticles: usize) -> Vec<Vec3> {
+pub fn maxwell_boltzmann(temperature: f64, nparticles: usize) -> Vec<Vec3> {
     let normal = Normal::new(0.0, temperature.sqrt()).unwrap();
     let mut rng = rand::thread_rng();
     (0..nparticles)
@@ -198,7 +221,7 @@ mod tests {
         let mut configuration = Configuration {
             nparticles: 1,
             positions: vec![Vec3::new(1.0, 1.0, 1.0)],
-            velocities: vec![Vec3::new(1.0, 0.0, 0.0)],
+            velocities: None,
             forces: vec![Vec3::new(1.0, 0.0, 0.0)],
             box_length: 3.0,
             max_nparticles: 1,
@@ -232,12 +255,18 @@ pub mod python {
     #[pymethods]
     impl PyConfiguration {
         #[staticmethod]
-        fn from_lattice(nparticles: usize, density: f64, max_nparticles: Option<usize>) -> Self {
+        fn lattice(
+            nparticles: usize,
+            density: f64,
+            max_nparticles: Option<usize>,
+            initial_temperature: Option<f64>,
+        ) -> Self {
             Self {
-                _data: Configuration::with_lattice(
+                _data: Configuration::lattice(
                     nparticles,
                     density,
                     max_nparticles.unwrap_or(nparticles),
+                    initial_temperature,
                 ),
             }
         }
@@ -286,7 +315,8 @@ pub mod python {
 
         #[getter]
         fn get_velocities<'py>(&self, py: Python<'py>) -> &'py PyArray2<f64> {
-            self._data.velocities().into_pyarray(py)
+            // Todo: use Option
+            self._data.velocities().unwrap().into_pyarray(py)
         }
 
         #[getter]

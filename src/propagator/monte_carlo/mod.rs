@@ -65,7 +65,7 @@ impl Propagator for MonteCarlo {
             .apply(system)
     }
 
-    fn adjust(&mut self, system: &System) {
+    fn adjust(&mut self, system: &mut System) {
         self.moves
             .iter()
             .for_each(|m| m.as_ref().borrow_mut().adjust(&system))
@@ -74,11 +74,11 @@ impl Propagator for MonteCarlo {
 
 #[cfg(feature = "python")]
 pub mod python {
+    use super::change_volume::ChangeVolume;
+    use super::displace_particle::DisplaceParticle;
+    use super::insert_particle::InsertDeleteParticle;
     use super::*;
     use pyo3::prelude::*;
-    use super::displace_particle::DisplaceParticle;
-    use super::change_volume::ChangeVolume;
-    use super::insert_particle::InsertDeleteParticle;
 
     #[pyclass(name = "MonteCarlo", unsendable)]
     #[derive(Clone)]

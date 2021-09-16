@@ -121,24 +121,24 @@ impl fmt::Display for DisplaceParticle {
     }
 }
 
-#[cfg(feature = "python")]
-pub mod python {
-    use super::*;
-    use pyo3::prelude::*;
+// #[cfg(feature = "python")]
+// pub mod python {
+//     use super::*;
+//     use pyo3::prelude::*;
 
-    #[pyclass(name = "DisplaceParticle", unsendable)]
-    #[derive(Clone)]
-    pub struct PyDisplaceParticle {
-        pub _data: DisplaceParticle,
-    }
+//     #[pyclass(name = "DisplaceParticle", unsendable)]
+//     #[derive(Clone)]
+//     pub struct PyDisplaceParticle {
+//         pub _data: DisplaceParticle,
+//     }
 
-    #[pymethods]
-    impl PyDisplaceParticle {
-        #[new]
-        fn new(maximum_displacement: f64, target_acceptance: f64, temperature: f64) -> Self {
-            Self {
-                _data: DisplaceParticle::new(maximum_displacement, target_acceptance, temperature),
-            }
-        }
-    }
-}
+//     #[pymethods]
+//     impl PyDisplaceParticle {
+//         #[new]
+//         fn new(maximum_displacement: f64, target_acceptance: f64, temperature: f64) -> Self {
+//             Self {
+//                 _data: DisplaceParticle::new(maximum_displacement, target_acceptance, temperature),
+//             }
+//         }
+//     }
+// }

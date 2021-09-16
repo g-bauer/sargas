@@ -1,10 +1,13 @@
-use super::Propagator;
+use super::{Integrator, Propagator};
 use crate::system::System;
 use pyo3::prelude::*;
 use std::fmt;
+
 #[derive(Clone)]
 pub struct VelocityVerlet {
+    /// time step
     dt: f64,
+    /// one half times squared time step
     dt2_2: f64,
 }
 
@@ -17,29 +20,31 @@ impl VelocityVerlet {
     }
 }
 
-impl Propagator for VelocityVerlet {
-    fn propagate(&mut self, system: &mut System) {
+impl Integrator for VelocityVerlet {
+    fn apply(&mut self, system: &mut System) {
         let mut squared_velocity = 0.0;
-
-        for i in 0..system.nparticles {
-            system.positions[i] += self.dt * system.velocities[i] + self.dt2_2 * system.forces[i];
-            system.positions[i].apply_pbc(system.box_length);
+        {
+            let v = system.configuration.velocities.as_ref().unwrap();
+            for i in 0..system.configuration.nparticles {
+                system.configuration.positions[i] +=
+                    self.dt * v[i] + self.dt2_2 * system.configuration.forces[i];
+                system.configuration.positions[i].apply_pbc(system.configuration.box_length);
+            }
         }
 
-        let new_forces = system.compute_forces();
+        // let new_forces = system.compute_forces();
+        system.compute_forces_inplace();
 
-        for i in 0..system.nparticles {
-            system.velocities[i] += (new_forces[i] + system.forces[i]) * 0.5 * self.dt;
-            squared_velocity += system.velocities[i].dot_product();
-            system.forces[i] = new_forces[i];
+        {
+            let v = system.configuration.velocities.as_mut().unwrap();
+            for i in 0..system.configuration.nparticles {
+                v[i] += system.configuration.forces[i] * 0.5 * self.dt;
+                squared_velocity += v[i].dot(&v[i]);
+                // system.configuration.forces[i] = new_forces[i];
+            }
         }
-
-        system.kinetic_energy = 0.5 * squared_velocity;
+        system.kinetic_energy = Some(0.5 * squared_velocity);
     }
-
-    fn adjust(&mut self, _: &System) {}
-
-    fn report(&self) {}
 }
 
 impl fmt::Display for VelocityVerlet {
@@ -52,18 +57,18 @@ impl fmt::Display for VelocityVerlet {
     }
 }
 
-#[pyclass(name = "VelocityVerlet", unsendable)]
-#[derive(Clone)]
-pub struct PyVelocityVerlet {
-    pub _data: VelocityVerlet,
-}
+// #[pyclass(name = "VelocityVerlet", unsendable)]
+// #[derive(Clone)]
+// pub struct PyVelocityVerlet {
+//     pub _data: VelocityVerlet,
+// }
 
-#[pymethods]
-impl PyVelocityVerlet {
-    #[new]
-    fn new(dt: f64) -> Self {
-        Self {
-            _data: VelocityVerlet::new(dt),
-        }
-    }
-}
+// #[pymethods]
+// impl PyVelocityVerlet {
+//     #[new]
+//     fn new(dt: f64) -> Self {
+//         Self {
+//             _data: VelocityVerlet::new(dt),
+//         }
+//     }
+// }

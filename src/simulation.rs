@@ -9,7 +9,7 @@ pub struct Simulation {
     pub step: usize,
     pub propagator: Rc<RefCell<dyn Propagator>>,
     pub system: Rc<RefCell<System>>,
-    pub update_propagator: Option<usize>,
+    pub adjustment_frequency: Option<usize>,
     pub observers: HashMap<String, Rc<RefCell<dyn Observer>>>,
 }
 
@@ -17,9 +17,9 @@ impl Simulation {
     pub fn new(
         system: Rc<RefCell<System>>,
         propagator: Rc<RefCell<dyn Propagator>>,
-        update_propagator: Option<usize>,
+        adjustment_frequency: Option<usize>,
     ) -> Result<Self, String> {
-        if let Some(f) = update_propagator {
+        if let Some(f) = adjustment_frequency {
             if f == 0 {
                 return Err("Nope!".to_owned());
             }
@@ -28,7 +28,7 @@ impl Simulation {
             step: 0,
             propagator,
             system,
-            update_propagator: update_propagator,
+            adjustment_frequency: adjustment_frequency,
             observers: HashMap::new(),
         })
     }
@@ -47,7 +47,7 @@ impl Simulation {
     }
 
     pub fn deactivate_propagator_updates(&mut self) {
-        self.update_propagator = None
+        self.adjustment_frequency = None
     }
 
     pub fn run(&mut self, steps: usize) {
@@ -57,8 +57,8 @@ impl Simulation {
             self.step += 1;
             self.propagator.borrow_mut().propagate(&mut s);
 
-            match self.update_propagator {
-                Some(f) if self.step % f == 0 => self.propagator.borrow_mut().adjust(&s),
+            match self.adjustment_frequency {
+                Some(f) if self.step % f == 0 => self.propagator.borrow_mut().adjust(&mut s),
                 _ => (),
             }
 
@@ -79,6 +79,7 @@ impl Simulation {
 pub mod python {
     use super::*;
     use crate::observer::python::PyObserver;
+    use crate::propagator::molecular_dynamics::python::PyMolecularDynamics;
     use crate::propagator::monte_carlo::python::*;
     use crate::system::python::PySystem;
     use pyo3::prelude::*;
@@ -94,10 +95,23 @@ pub mod python {
         fn monte_carlo(
             system: PySystem,
             propagator: PyMonteCarlo,
-            update_propagator: Option<usize>,
+            adjustment_frequency: Option<usize>,
         ) -> Self {
             Self {
-                _data: Simulation::new(system._data, propagator._data, update_propagator).unwrap(),
+                _data: Simulation::new(system._data, propagator._data, adjustment_frequency)
+                    .unwrap(),
+            }
+        }
+
+        #[staticmethod]
+        fn molecular_dynamics(
+            system: PySystem,
+            propagator: PyMolecularDynamics,
+            thermostat_frequency: Option<usize>,
+        ) -> Self {
+            Self {
+                _data: Simulation::new(system._data, propagator._data, thermostat_frequency)
+                    .unwrap(),
             }
         }
 
@@ -123,7 +137,7 @@ pub mod python {
     //     fn __repr__(&self) -> PyResult<String> {
     //         Ok(fmt::format(format_args!(
     //             "Simulation\n==========\nadjust displacement: {}\n\n{}\n\n",
-    //             self._data.update_propagator.is_some(),
+    //             self._data.adjustment_frequency.is_some(),
     //             self._data.system.as_ref().borrow().to_string(),
     //             // self._data.propagator.to_string(),
     //         )))

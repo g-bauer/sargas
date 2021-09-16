@@ -1,4 +1,4 @@
-use crate::configuration::Configuration;
+use crate::configuration::{maxwell_boltzmann, Configuration};
 use crate::potential::Potential;
 use crate::vec::Vec3;
 use itertools::FoldWhile::{Continue, Done};
@@ -15,6 +15,7 @@ pub struct System {
     pub potential: Rc<dyn Potential>,
     pub energy: f64,
     pub virial: f64,
+    pub kinetic_energy: Option<f64>,
 }
 
 impl System {
@@ -23,11 +24,13 @@ impl System {
             configuration,
             potential,
             energy: 0.0,
+            kinetic_energy: None,
             virial: 0.0,
         };
         let (u, v) = system.energy_virial();
         system.energy = u;
         system.virial = v;
+        system.compute_forces_inplace();
         system
     }
 
@@ -183,10 +186,16 @@ impl System {
             .forces
             .iter_mut()
             .for_each(|fi| *fi = Vec3::zero());
-        self.configuration
-            .velocities
-            .iter_mut()
-            .for_each(|vi| *vi = Vec3::zero());
+
+        // use current temperature from kinetic energy to set velocities from scratch
+        if let Some(t) = self.configuration.temperature_from_velocities() {
+            self.configuration.velocities =
+                Some(maxwell_boltzmann(t, self.configuration.nparticles));
+            self.kinetic_energy = Some(3.0 / 2.0 * t);
+        } else {
+            self.configuration.velocities = None;
+            self.kinetic_energy = None;
+        }
         if self.configuration.nparticles == 0 {
             return;
         }
@@ -194,7 +203,6 @@ impl System {
         self.energy = e;
         self.virial = v;
         self.configuration.forces = self.compute_forces();
-        // self.velocities = maxwell_boltzmann(self.temperature, self.configuration.nparticles);
     }
 
     pub fn recompute(&mut self) {
@@ -386,6 +394,7 @@ pub mod python {
                 .borrow()
                 .configuration
                 .velocities()
+                .unwrap()
                 .into_pyarray(py)
         }
 
