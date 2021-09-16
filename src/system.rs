@@ -13,7 +13,7 @@ use std::rc::Rc;
 pub struct System {
     pub configuration: Configuration,
     pub potential: Rc<dyn Potential>,
-    pub energy: f64,
+    pub potential_energy: f64,
     pub virial: f64,
     pub kinetic_energy: Option<f64>,
 }
@@ -23,14 +23,15 @@ impl System {
         let mut system = Self {
             configuration,
             potential,
-            energy: 0.0,
+            potential_energy: 0.0,
             kinetic_energy: None,
             virial: 0.0,
         };
         let (u, v) = system.energy_virial();
-        system.energy = u;
+        system.potential_energy = u;
         system.virial = v;
         system.compute_forces_inplace();
+        system.kinetic_energy = system.configuration.kinetic_energy_from_velocities();
         system
     }
 
@@ -180,7 +181,7 @@ impl System {
     }
 
     pub fn reset(&mut self) {
-        self.energy = 0.0;
+        self.potential_energy = 0.0;
         self.virial = 0.0;
         self.configuration
             .forces
@@ -200,38 +201,38 @@ impl System {
             return;
         }
         let (e, v) = self.energy_virial();
-        self.energy = e;
+        self.potential_energy = e;
         self.virial = v;
         self.configuration.forces = self.compute_forces();
     }
 
     pub fn recompute(&mut self) {
-        self.energy = 0.0;
+        self.potential_energy = 0.0;
         self.virial = 0.0;
-        self.configuration
-            .forces
-            .iter_mut()
-            .for_each(|fi| *fi = Vec3::zero());
         if self.configuration.nparticles == 0 {
             return;
         }
         let (e, v) = self.energy_virial();
-        self.energy = e;
+        self.potential_energy = e;
         self.virial = v;
-        self.configuration.forces = self.compute_forces();
-        // self.velocities = maxwell_boltzmann(self.temperature, self.configuration.nparticles);
+        self.compute_forces_inplace();
+        if let Some(t) = self.configuration.temperature_from_velocities() {
+            self.kinetic_energy = Some(3.0 / 2.0 * t);
+        } else {
+            self.kinetic_energy = None;
+        }
     }
 
     pub fn compute_forces_inplace(&mut self) {
+        let box_length = self.configuration.box_length;
         self.configuration
             .forces
             .iter_mut()
             .for_each(|f| *f = Vec3::zero());
         for i in 0..self.configuration.nparticles - 1 {
             let position_i = self.configuration.positions[i];
-            for j in i + 1..self.configuration.nparticles {
-                let mut rij = self.configuration.positions[j] - position_i;
-                self.configuration.nearest_image(&mut rij);
+            for j in (i + 1)..self.configuration.nparticles {
+                let rij = (position_i - self.configuration.positions[j]).nearest_image(box_length);
                 let r2 = rij.dot(&rij);
                 if r2 <= self.potential.rc2() {
                     let fij = self.potential.virial(r2) / r2;
@@ -243,14 +244,14 @@ impl System {
     }
 
     pub fn compute_forces(&self) -> Vec<Vec3> {
+        let box_length = self.configuration.box_length;
         let mut forces: Vec<Vec3> = (0..self.configuration.nparticles)
             .map(|_| Vec3::zero())
             .collect();
         for i in 0..self.configuration.nparticles - 1 {
             let position_i = self.configuration.positions[i];
-            for j in i + 1..self.configuration.nparticles {
-                let mut rij = self.configuration.positions[j] - position_i;
-                self.configuration.nearest_image(&mut rij);
+            for j in (i + 1)..self.configuration.nparticles {
+                let rij = (position_i - self.configuration.positions[j]).nearest_image(box_length);
                 let r2 = rij.dot(&rij);
                 if r2 <= self.potential.rc2() {
                     let fij = self.potential.virial(r2) / r2;
@@ -351,7 +352,7 @@ pub mod python {
 
         #[getter]
         fn get_energy(&self) -> f64 {
-            self._data.as_ref().borrow().energy
+            self._data.as_ref().borrow().potential_energy
         }
 
         #[getter]
@@ -365,6 +366,32 @@ pub mod python {
 
         fn compute_energy_virial(&self) -> (f64, f64) {
             self._data.as_ref().borrow().energy_virial()
+        }
+
+        /// Compute kinetic energy from velocities.
+        pub fn kinetic_energy_from_velocities(&self) -> Option<f64> {
+            self._data
+                .as_ref()
+                .borrow()
+                .configuration
+                .kinetic_energy_from_velocities()
+        }
+
+        /// Compute temperature from kinetic energy.
+        pub fn temperature(&self) -> Option<f64> {
+            self._data
+                .as_ref()
+                .borrow()
+                .configuration
+                .kinetic_energy_from_velocities()
+                .map(|ke| {
+                    ke * 2.0 / 3.0 / self._data.as_ref().borrow().configuration.nparticles as f64
+                })
+        }
+
+        #[getter]
+        fn get_kinetic_energy(&self) -> Option<f64> {
+            self._data.as_ref().borrow().kinetic_energy
         }
 
         #[getter]
@@ -415,6 +442,13 @@ pub mod python {
                 |(i, j)| f[i][j],
             )
             .into_pyarray(py)
+        }
+
+        #[getter]
+        fn get_configuration(&self) -> PyConfiguration {
+            PyConfiguration {
+                _data: self._data.as_ref().borrow().configuration.clone()
+            }
         }
     }
 

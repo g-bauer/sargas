@@ -1,5 +1,4 @@
 use crate::system::System;
-use ndarray::ArrayView1;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -30,7 +29,7 @@ impl Observer for PotentialEnergyObserver {
         String::from("energy")
     }
     fn sample(&mut self, system: &System) {
-        self.data.push(system.energy)
+        self.data.push(system.potential_energy)
     }
     fn frequency(&self) -> usize {
         self.frequency
@@ -81,24 +80,20 @@ impl Observer for PressureObserver {
 }
 
 pub struct PropertiesObserver {
-    volume: Vec<f64>,
     pressure: Vec<f64>,
-    energy: Vec<f64>,
+    potential_energy: Vec<f64>,
+    kinetic_energy: Vec<f64>,
     virial: Vec<f64>,
-    density: Vec<f64>,
-    nparticles: Vec<f64>,
     frequency: usize,
 }
 
 impl PropertiesObserver {
     pub fn new(frequency: usize, capacity: Option<usize>) -> Self {
         Self {
-            volume: Vec::with_capacity(capacity.unwrap_or(100)),
             pressure: Vec::with_capacity(capacity.unwrap_or(100)),
-            energy: Vec::with_capacity(capacity.unwrap_or(100)),
+            potential_energy: Vec::with_capacity(capacity.unwrap_or(100)),
+            kinetic_energy: Vec::with_capacity(capacity.unwrap_or(100)),
             virial: Vec::with_capacity(capacity.unwrap_or(100)),
-            density: Vec::with_capacity(capacity.unwrap_or(100)),
-            nparticles: Vec::with_capacity(capacity.unwrap_or(100)),
             frequency,
         }
     }
@@ -117,11 +112,11 @@ impl Observer for PropertiesObserver {
                 .potential
                 .pressure_tail(system.configuration.density());
         self.pressure.push(pressure);
-        self.volume.push(volume);
-        self.energy.push(u);
+        self.potential_energy.push(u);
+        if let Some(ke) = system.configuration.kinetic_energy_from_velocities() {
+            self.kinetic_energy.push(ke)
+        }
         self.virial.push(v);
-        self.density.push(system.configuration.density());
-        self.nparticles.push(system.configuration.nparticles as f64);
     }
 
     fn frequency(&self) -> usize {
@@ -130,19 +125,25 @@ impl Observer for PropertiesObserver {
 
     fn property(&self) -> HashMap<String, Vec<f64>> {
         let mut hm = HashMap::new();
-        hm.insert(String::from("potential_energy"), self.energy.clone());
+        hm.insert(
+            String::from("potential_energy"),
+            self.potential_energy.clone(),
+        );
         hm.insert(String::from("pressure"), self.pressure.clone());
-        hm.insert(String::from("volume"), self.volume.clone());
         hm.insert(String::from("virial"), self.virial.clone());
-        hm.insert(String::from("density"), self.density.clone());
-        hm.insert(String::from("nparticles"), self.nparticles.clone());
+        if self.kinetic_energy.len() > 0 {
+            hm.insert(String::from("kinetic_energy"), self.kinetic_energy.clone());
+            hm.insert(
+                String::from("total_energy"),
+                self.potential_energy
+                    .iter()
+                    .zip(self.kinetic_energy.iter())
+                    .map(|(p, k)| p + k)
+                    .collect(),
+            );
+        }
         hm
     }
-}
-
-fn logsumexp(x: ArrayView1<f64>) -> f64 {
-    let x_max = x.iter().cloned().reduce(f64::max).unwrap();
-    x_max + x.mapv(|x_i| (x_i - x_max).exp()).sum().ln()
 }
 
 pub struct WidomObserver {
@@ -205,15 +206,6 @@ impl Observer for WidomObserver {
     }
 }
 
-// fn widom_insertion(system: &System) -> HashMap<String, f64> {
-//     let beta = 0.0;
-//     let ninsertions = 0;
-//     let mut m = HashMap::new();
-//     let du = -beta * system.ghost_particle_energy(ninsertions);
-//     let mu = -(logsumexp(du.view())) + (ninsertions as f64).ln();
-//     m.insert("beta_mu".into(), mu);
-//     m
-// }
 
 #[cfg(feature = "python")]
 pub mod python {

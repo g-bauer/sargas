@@ -34,7 +34,7 @@ pub struct LennardJones {
 impl LennardJones {
     /// Create a new potential without energy shift and possibly tail corrections.
     pub fn new(sigma: f64, epsilon: f64, rc: f64, tail_correction: bool) -> Self {
-        let squared_overlap_distance = 0.56 * sigma.powi(2); // approx 100*epsilon
+        let squared_overlap_distance = 0.2 * sigma.powi(2); // approx 100*epsilon
         Self {
             rc2: rc.powi(2),
             sigma,
@@ -204,17 +204,17 @@ pub mod python {
             epsilon: f64,
             rc: f64,
             tail_correction: bool,
-            with_shift: Option<f64>,
+            shift_at: Option<f64>,
         ) -> Self {
-            match with_shift {
+            match shift_at {
                 None => Self {
                     _data: Rc::new(LennardJones::new(sigma, epsilon, rc, tail_correction)),
                 },
-                Some(rc) => Self {
+                Some(s) => Self {
                     _data: Rc::new(LennardJones::new_shifted(
                         sigma,
                         epsilon,
-                        rc,
+                        s,
                         tail_correction,
                     )),
                 },
@@ -226,6 +226,11 @@ pub mod python {
             Self {
                 _data: Rc::new(HardSphere::new(sigma, rc)),
             }
+        }
+
+        #[getter]
+        fn get_rc2(&self) -> f64 {
+            self._data.rc2()
         }
     }
 

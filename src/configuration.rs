@@ -133,14 +133,6 @@ impl Configuration {
 
 impl Configuration {
     #[inline]
-    pub fn nearest_image(&self, r: &mut Vec3) {
-        let il = 1.0 / self.box_length;
-        r.x -= self.box_length * f64::round(r.x * il);
-        r.y -= self.box_length * f64::round(r.y * il);
-        r.z -= self.box_length * f64::round(r.z * il);
-    }
-
-    #[inline]
     pub fn rescale_box_length(&mut self, box_length_new: f64) {
         let s = box_length_new / self.box_length;
         self.positions.iter_mut().for_each(|r| *r *= s);
@@ -179,6 +171,14 @@ impl Configuration {
             .as_ref()
             .map(|v| v.iter().fold(0.0, |acc, vi| acc + vi.dot(vi)));
         squared_veloicty.map(|v2| v2 / (3.0 * self.nparticles as f64))
+    }
+
+    pub fn kinetic_energy_from_velocities(&self) -> Option<f64> {
+        let squared_veloicty = self
+            .velocities
+            .as_ref()
+            .map(|v| v.iter().fold(0.0, |acc, vi| acc + vi.dot(vi)));
+        squared_veloicty.map(|v2| 0.5 * v2)
     }
 
     pub fn forces(&self) -> Array2<f64> {
@@ -242,7 +242,6 @@ mod tests {
 #[cfg(feature = "python")]
 pub mod python {
     use super::*;
-    use numpy::{IntoPyArray, PyArray2};
     use pyo3::prelude::*;
     use pyo3::PyObjectProtocol;
 
@@ -271,58 +270,58 @@ pub mod python {
             }
         }
 
-        // #[staticmethod]
-        // fn insert_particles(
-        //     nparticles: usize,
-        //     volume: f64,
-        //     temperature: f64,
-        //     chemical_potential: f64,
-        //     rc: f64,
-        //     potential: PyPotential,
-        //     max_nparticles: Option<usize>,
-        //     insertion_tries: Option<usize>,
-        // ) -> PyResult<Self> {
-        //     Ok(Self {
-        //         _data: Rc::new(RefCell::new(
-        //             Configuration::insert_particles(
-        //                 nparticles,
-        //                 volume,
-        //                 temperature,
-        //                 chemical_potential,
-        //                 rc,
-        //                 potential._data.clone(),
-        //                 max_nparticles.unwrap_or(nparticles),
-        //                 insertion_tries,
-        //             )
-        //             .map_err(|e| PyRuntimeError::new_err(e))?,
-        //         )),
-        //     })
+        // // #[staticmethod]
+        // // fn insert_particles(
+        // //     nparticles: usize,
+        // //     volume: f64,
+        // //     temperature: f64,
+        // //     chemical_potential: f64,
+        // //     rc: f64,
+        // //     potential: PyPotential,
+        // //     max_nparticles: Option<usize>,
+        // //     insertion_tries: Option<usize>,
+        // // ) -> PyResult<Self> {
+        // //     Ok(Self {
+        // //         _data: Rc::new(RefCell::new(
+        // //             Configuration::insert_particles(
+        // //                 nparticles,
+        // //                 volume,
+        // //                 temperature,
+        // //                 chemical_potential,
+        // //                 rc,
+        // //                 potential._data.clone(),
+        // //                 max_nparticles.unwrap_or(nparticles),
+        // //                 insertion_tries,
+        // //             )
+        // //             .map_err(|e| PyRuntimeError::new_err(e))?,
+        // //         )),
+        // //     })
+        // // }
+        // #[getter]
+        // fn get_box_length(&self) -> f64 {
+        //     self._data.box_length
         // }
-        #[getter]
-        fn get_box_length(&self) -> f64 {
-            self._data.box_length
-        }
 
-        #[getter]
-        fn get_nparticles(&self) -> usize {
-            self._data.nparticles
-        }
+        // #[getter]
+        // fn get_nparticles(&self) -> usize {
+        //     self._data.nparticles
+        // }
 
-        #[getter]
-        fn get_positions<'py>(&self, py: Python<'py>) -> &'py PyArray2<f64> {
-            self._data.positions().into_pyarray(py)
-        }
+        // #[getter]
+        // fn get_positions<'py>(&self, py: Python<'py>) -> &'py PyArray2<f64> {
+        //     self._data.positions().into_pyarray(py)
+        // }
 
-        #[getter]
-        fn get_velocities<'py>(&self, py: Python<'py>) -> &'py PyArray2<f64> {
-            // Todo: use Option
-            self._data.velocities().unwrap().into_pyarray(py)
-        }
+        // #[getter]
+        // fn get_velocities<'py>(&self, py: Python<'py>) -> &'py PyArray2<f64> {
+        //     // Todo: use Option
+        //     self._data.velocities().unwrap().into_pyarray(py)
+        // }
 
-        #[getter]
-        fn get_forces<'py>(&self, py: Python<'py>) -> &'py PyArray2<f64> {
-            self._data.forces().into_pyarray(py)
-        }
+        // #[getter]
+        // fn get_forces<'py>(&self, py: Python<'py>) -> &'py PyArray2<f64> {
+        //     self._data.forces().into_pyarray(py)
+        // }
     }
 
     #[pyproto]

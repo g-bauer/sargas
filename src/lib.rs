@@ -30,6 +30,7 @@ fn sargas(_: Python, m: &PyModule) -> PyResult<()> {
     // Molecular Dynamics
     m.add_class::<propagator::molecular_dynamics::python::PyMolecularDynamics>()?;
     m.add_class::<propagator::molecular_dynamics::python::PyIntegrator>()?;
+    m.add_class::<propagator::molecular_dynamics::python::PyThermostat>()?;
 
     m.add_class::<potential::python::PyPotential>()?;
     m.add_class::<observer::python::PyObserver>()?;

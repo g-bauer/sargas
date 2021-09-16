@@ -69,7 +69,7 @@ impl MCMove for DisplaceParticle {
         let acceptance: f64 = self.rng.gen();
         if acceptance < f64::exp(-self.beta * (energy_new - energy_old)) {
             self.accepted += 1;
-            system.energy += energy_new - energy_old;
+            system.potential_energy += energy_new - energy_old;
             system.virial += virial_new - virial_old
         } else {
             system.configuration.positions[i] = position_old;

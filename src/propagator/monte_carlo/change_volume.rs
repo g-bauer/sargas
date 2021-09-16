@@ -53,7 +53,7 @@ impl MCMove for ChangeVolume {
         self.attempted += 1;
 
         // Store current values for volume and energy
-        let energy_old = system.energy;
+        let energy_old = system.potential_energy;
         let volume_old = system.configuration.volume();
         let box_length_old = system.configuration.box_length;
 
@@ -71,14 +71,14 @@ impl MCMove for ChangeVolume {
         let acceptance: f64 = self.rng.gen();
         if acceptance < f64::exp(boltzmann_factor) {
             self.accepted += 1;
-            system.energy = energy_new;
+            system.potential_energy = energy_new;
             system.virial = virial_new;
         } else {
             system.configuration.rescale_box_length(box_length_old);
         }
     }
 
-    fn adjust(&mut self, system: &System) {
+    fn adjust(&mut self, _system: &System) {
         self.attempted_total += self.attempted;
         self.accepted_total += self.accepted;
         if self.attempted == 0 {

@@ -1,6 +1,5 @@
-use super::{Integrator, Propagator};
+use super::Integrator;
 use crate::system::System;
-use pyo3::prelude::*;
 use std::fmt;
 
 #[derive(Clone)]
@@ -23,24 +22,19 @@ impl VelocityVerlet {
 impl Integrator for VelocityVerlet {
     fn apply(&mut self, system: &mut System) {
         let mut squared_velocity = 0.0;
-        {
-            let v = system.configuration.velocities.as_ref().unwrap();
+        if let Some(v) = system.configuration.velocities.as_mut() {
             for i in 0..system.configuration.nparticles {
+                v[i] += system.configuration.forces[i] * 0.5 * self.dt;
                 system.configuration.positions[i] +=
-                    self.dt * v[i] + self.dt2_2 * system.configuration.forces[i];
+                    self.dt * v[i]; //+ self.dt2_2 * system.configuration.forces[i];
                 system.configuration.positions[i].apply_pbc(system.configuration.box_length);
             }
         }
-
-        // let new_forces = system.compute_forces();
         system.compute_forces_inplace();
-
-        {
-            let v = system.configuration.velocities.as_mut().unwrap();
+        if let Some(v) = system.configuration.velocities.as_mut() {
             for i in 0..system.configuration.nparticles {
                 v[i] += system.configuration.forces[i] * 0.5 * self.dt;
                 squared_velocity += v[i].dot(&v[i]);
-                // system.configuration.forces[i] = new_forces[i];
             }
         }
         system.kinetic_energy = Some(0.5 * squared_velocity);

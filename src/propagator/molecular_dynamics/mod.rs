@@ -2,7 +2,9 @@ use super::Propagator;
 use crate::system::System;
 use std::cell::RefCell;
 use std::rc::Rc;
+pub mod velocity_rescaling;
 pub mod velocity_verlet;
+use velocity_rescaling::VelocityRescaling;
 use velocity_verlet::VelocityVerlet;
 
 pub trait Integrator {
@@ -11,7 +13,7 @@ pub trait Integrator {
 
 pub trait Thermostat {
     fn apply(&self, system: &mut System);
-    fn frequency(&self) -> usize;
+    // fn frequency(&self) -> usize;
 }
 
 struct MolecularDynamics {
@@ -52,6 +54,22 @@ pub mod python {
         }
     }
 
+    #[pyclass(name = "Thermostat", unsendable)]
+    #[derive(Clone)]
+    pub struct PyThermostat {
+        pub _data: Rc<RefCell<dyn Thermostat>>,
+    }
+
+    #[pymethods]
+    impl PyThermostat {
+        #[staticmethod]
+        fn velocity_rescaling(target_temperature: f64) -> Self {
+            Self {
+                _data: Rc::new(RefCell::new(VelocityRescaling::new(target_temperature))),
+            }
+        }
+    }
+
     #[pyclass(name = "MolecularDynamics", unsendable)]
     #[derive(Clone)]
     pub struct PyMolecularDynamics {
@@ -61,11 +79,11 @@ pub mod python {
     #[pymethods]
     impl PyMolecularDynamics {
         #[new]
-        fn new(integrator: PyIntegrator) -> Self {
+        fn new(integrator: PyIntegrator, thermostat: Option<PyThermostat>) -> Self {
             Self {
                 _data: Rc::new(RefCell::new(MolecularDynamics {
                     integrator: integrator._data.clone(),
-                    thermostat: None,
+                    thermostat: thermostat.map(|t| t._data.clone()),
                 })),
             }
         }

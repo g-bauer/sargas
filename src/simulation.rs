@@ -75,6 +75,33 @@ impl Simulation {
     }
 }
 
+// #[cfg(feature = "python")]
+// impl Simulation {
+//     pub fn run_cancelable(&mut self, py: Python, steps: usize) -> PyResult<()> {
+//         let mut s = self.system.borrow_mut();
+//         s.recompute();
+//         for _ in 1..=steps {
+//             self.step += 1;
+//             self.propagator.borrow_mut().propagate(&mut s);
+
+//             match self.adjustment_frequency {
+//                 Some(f) if self.step % f == 0 => self.propagator.borrow_mut().adjust(&mut s),
+//                 _ => (),
+//             }
+
+//             {
+//                 let i = self.step;
+//                 self.observers.iter_mut().for_each(|(_, v)| {
+//                     let mut o = v.borrow_mut();
+//                     if i % o.frequency() == 0 {
+//                         o.sample(&s)
+//                     }
+//                 });
+//             }
+//         }
+//     }
+// }
+
 #[cfg(feature = "python")]
 pub mod python {
     use super::*;
@@ -83,6 +110,37 @@ pub mod python {
     use crate::propagator::monte_carlo::python::*;
     use crate::system::python::PySystem;
     use pyo3::prelude::*;
+
+    impl Simulation {
+        pub fn run_cancelable(&mut self, py: Python, steps: usize) -> PyResult<()> {
+            let mut s = self.system.borrow_mut();
+            s.recompute();
+            for _ in 1..=steps {
+                self.step += 1;
+                self.propagator.borrow_mut().propagate(&mut s);
+    
+                match self.adjustment_frequency {
+                    Some(f) if self.step % f == 0 => self.propagator.borrow_mut().adjust(&mut s),
+                    _ => (),
+                }
+
+                if self.step % 250 == 0 {
+                    py.check_signals()?;
+                }
+    
+                {
+                    let i = self.step;
+                    self.observers.iter_mut().for_each(|(_, v)| {
+                        let mut o = v.borrow_mut();
+                        if i % o.frequency() == 0 {
+                            o.sample(&s)
+                        }
+                    });
+                }
+            }
+            Ok(())
+        }
+    }
 
     #[pyclass(name = "Simulation", unsendable)]
     pub struct PySimulation {
@@ -127,8 +185,8 @@ pub mod python {
             self._data.deactivate_propagator_updates()
         }
 
-        fn run(&mut self, steps: usize) {
-            self._data.run(steps)
+        fn run(&mut self, py: Python, steps: usize) -> PyResult<()> {
+            self._data.run_cancelable(py, steps)
         }
     }
 
