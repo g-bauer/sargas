@@ -2,8 +2,10 @@ use super::Propagator;
 use crate::system::System;
 use std::cell::RefCell;
 use std::rc::Rc;
+pub mod andersen;
 pub mod velocity_rescaling;
 pub mod velocity_verlet;
+use andersen::Andersen;
 use velocity_rescaling::VelocityRescaling;
 use velocity_verlet::VelocityVerlet;
 
@@ -66,6 +68,17 @@ pub mod python {
         fn velocity_rescaling(target_temperature: f64) -> Self {
             Self {
                 _data: Rc::new(RefCell::new(VelocityRescaling::new(target_temperature))),
+            }
+        }
+
+        #[staticmethod]
+        fn andersen(target_temperature: f64, timestep: f64, collision_frequency: f64) -> Self {
+            Self {
+                _data: Rc::new(RefCell::new(Andersen::new(
+                    target_temperature,
+                    timestep,
+                    collision_frequency,
+                ))),
             }
         }
     }

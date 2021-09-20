@@ -4,13 +4,13 @@ use crate::vec::Vec3;
 use rand::prelude::*;
 use rand_distr::{Distribution, Normal};
 
-pub struct Andersen {
+pub struct LoweAndersen {
     timestep: f64,
     collision_frequency: f64,
     distribution: Normal<f64>,
 }
 
-impl Andersen {
+impl LoweAndersen {
     pub fn new(target_temperature: f64, timestep: f64, collision_frequency: f64) -> Self {
         Self {
             timestep,
@@ -20,7 +20,7 @@ impl Andersen {
     }
 }
 
-impl Thermostat for Andersen {
+impl Thermostat for LoweAndersen {
     fn apply(&self, system: &mut System) {
         let mut rng = rand::thread_rng();
         if let Some(v) = system.configuration.velocities.as_mut() {
