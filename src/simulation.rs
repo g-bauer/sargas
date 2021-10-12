@@ -1,16 +1,22 @@
-use crate::observer::Observer;
 use crate::propagator::Propagator;
+use crate::sampler::Sampler;
 use crate::system::System;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{borrow::Borrow, cell::RefCell};
 
+/// A molecular simulation object.
 pub struct Simulation {
+    /// current (time) step
     pub step: usize,
+    /// system propagator
     pub propagator: Rc<RefCell<dyn Propagator>>,
+    /// system
     pub system: Rc<RefCell<System>>,
+    ///
     pub adjustment_frequency: Option<usize>,
-    pub observers: HashMap<String, Rc<RefCell<dyn Observer>>>,
+    ///
+    pub samplers: HashMap<String, Rc<RefCell<dyn Sampler>>>,
 }
 
 impl Simulation {
@@ -29,21 +35,21 @@ impl Simulation {
             propagator,
             system,
             adjustment_frequency: adjustment_frequency,
-            observers: HashMap::new(),
+            samplers: HashMap::new(),
         })
     }
 
-    pub fn add_observer(&mut self, observer: Rc<RefCell<dyn Observer>>) {
-        self.observers
-            .insert(observer.as_ref().borrow().name(), observer.clone());
+    pub fn add_sampler(&mut self, sampler: Rc<RefCell<dyn Sampler>>) {
+        self.samplers
+            .insert(sampler.as_ref().borrow().name(), sampler.clone());
     }
 
-    pub fn remove_observer(&mut self, observer: Rc<RefCell<dyn Observer>>) {
-        self.observers.remove(&observer.as_ref().borrow().name());
+    pub fn remove_sampler(&mut self, sampler: Rc<RefCell<dyn Sampler>>) {
+        self.samplers.remove(&sampler.as_ref().borrow().name());
     }
 
-    pub fn print_observers(&self) -> Vec<String> {
-        self.observers.borrow().keys().cloned().collect()
+    pub fn print_samplers(&self) -> Vec<String> {
+        self.samplers.borrow().keys().cloned().collect()
     }
 
     pub fn deactivate_propagator_updates(&mut self) {
@@ -52,7 +58,7 @@ impl Simulation {
 
     pub fn run(&mut self, steps: usize) {
         let mut s = self.system.borrow_mut();
-        s.recompute();
+        s.recompute_energy_forces();
         for _ in 1..=steps {
             self.step += 1;
             self.propagator.borrow_mut().propagate(&mut s);
@@ -64,7 +70,7 @@ impl Simulation {
 
             {
                 let i = self.step;
-                self.observers.iter_mut().for_each(|(_, v)| {
+                self.samplers.iter_mut().for_each(|(_, v)| {
                     let mut o = v.borrow_mut();
                     if i % o.frequency() == 0 {
                         o.sample(&s)
@@ -91,7 +97,7 @@ impl Simulation {
 
 //             {
 //                 let i = self.step;
-//                 self.observers.iter_mut().for_each(|(_, v)| {
+//                 self.samplers.iter_mut().for_each(|(_, v)| {
 //                     let mut o = v.borrow_mut();
 //                     if i % o.frequency() == 0 {
 //                         o.sample(&s)
@@ -105,20 +111,20 @@ impl Simulation {
 #[cfg(feature = "python")]
 pub mod python {
     use super::*;
-    use crate::observer::python::PyObserver;
     use crate::propagator::molecular_dynamics::python::PyMolecularDynamics;
     use crate::propagator::monte_carlo::python::*;
+    use crate::sampler::python::PySampler;
     use crate::system::python::PySystem;
     use pyo3::prelude::*;
 
     impl Simulation {
         pub fn run_cancelable(&mut self, py: Python, steps: usize) -> PyResult<()> {
             let mut s = self.system.borrow_mut();
-            s.recompute();
+            s.recompute_energy_forces();
             for _ in 1..=steps {
                 self.step += 1;
                 self.propagator.borrow_mut().propagate(&mut s);
-    
+
                 match self.adjustment_frequency {
                     Some(f) if self.step % f == 0 => self.propagator.borrow_mut().adjust(&mut s),
                     _ => (),
@@ -127,10 +133,10 @@ pub mod python {
                 if self.step % 250 == 0 {
                     py.check_signals()?;
                 }
-    
+
                 {
                     let i = self.step;
-                    self.observers.iter_mut().for_each(|(_, v)| {
+                    self.samplers.iter_mut().for_each(|(_, v)| {
                         let mut o = v.borrow_mut();
                         if i % o.frequency() == 0 {
                             o.sample(&s)
@@ -173,12 +179,12 @@ pub mod python {
             }
         }
 
-        fn add_observer(&mut self, observer: &PyObserver) {
-            self._data.add_observer(observer._data.clone())
+        fn add_sampler(&mut self, sampler: &PySampler) {
+            self._data.add_sampler(sampler._data.clone())
         }
 
-        fn remove_observer(&mut self, observer: &PyObserver) {
-            self._data.remove_observer(observer._data.clone())
+        fn remove_sampler(&mut self, sampler: &PySampler) {
+            self._data.remove_sampler(sampler._data.clone())
         }
 
         fn deactivate_propagator_updates(&mut self) {
@@ -219,12 +225,12 @@ pub mod python {
     //         }
     //     }
 
-    //     fn add_observer(&mut self, observer: &PyObserver) {
-    //         self._data.add_observer(observer._data.clone())
+    //     fn add_sampler(&mut self, sampler: &PySampler) {
+    //         self._data.add_sampler(sampler._data.clone())
     //     }
 
-    //     fn remove_observer(&mut self, observer: &PyObserver) {
-    //         self._data.remove_observer(observer._data.clone())
+    //     fn remove_sampler(&mut self, sampler: &PySampler) {
+    //         self._data.remove_sampler(sampler._data.clone())
     //     }
 
     //     fn run(&mut self, steps: usize) {

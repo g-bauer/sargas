@@ -180,6 +180,8 @@ impl System {
             .into_inner()
     }
 
+    /// Sets random velocities according to current kinetic energy and
+    /// computes kinetic and potential energy, virial and forces.
     pub fn reset(&mut self) {
         self.potential_energy = 0.0;
         self.virial = 0.0;
@@ -206,7 +208,8 @@ impl System {
         self.configuration.forces = self.compute_forces();
     }
 
-    pub fn recompute(&mut self) {
+    /// Compute kinetic and potential energy, virial and forces from current velocities and positions.
+    pub fn recompute_energy_forces(&mut self) {
         self.potential_energy = 0.0;
         self.virial = 0.0;
         if self.configuration.nparticles == 0 {
@@ -223,6 +226,7 @@ impl System {
         }
     }
 
+    /// Computes and overwrites forces between all particles in the system.
     pub fn compute_forces_inplace(&mut self) {
         let box_length = self.configuration.box_length;
         self.configuration
@@ -243,6 +247,7 @@ impl System {
         }
     }
 
+    /// Computes and forces between all particles in the system.
     pub fn compute_forces(&self) -> Vec<Vec3> {
         let box_length = self.configuration.box_length;
         let mut forces: Vec<Vec3> = (0..self.configuration.nparticles)
@@ -263,16 +268,19 @@ impl System {
         forces
     }
 
+    /// System volume.
     #[inline]
     pub fn volume(&self) -> f64 {
         self.configuration.volume()
     }
 
+    /// System density.
     #[inline]
     pub fn density(&self) -> f64 {
         self.configuration.density()
     }
 
+    /// System pressure without ideal gas contribution.
     #[inline]
     pub fn residual_pressure(&self) -> f64 {
         self.virial / (3.0 * self.volume()) + self.potential.pressure_tail(self.density())
@@ -447,7 +455,7 @@ pub mod python {
         #[getter]
         fn get_configuration(&self) -> PyConfiguration {
             PyConfiguration {
-                _data: self._data.as_ref().borrow().configuration.clone()
+                _data: self._data.as_ref().borrow().configuration.clone(),
             }
         }
     }

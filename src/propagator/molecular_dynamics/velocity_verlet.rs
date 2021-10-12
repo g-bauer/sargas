@@ -25,8 +25,7 @@ impl Integrator for VelocityVerlet {
         if let Some(v) = system.configuration.velocities.as_mut() {
             for i in 0..system.configuration.nparticles {
                 v[i] += system.configuration.forces[i] * 0.5 * self.dt;
-                system.configuration.positions[i] +=
-                    self.dt * v[i]; //+ self.dt2_2 * system.configuration.forces[i];
+                system.configuration.positions[i] += self.dt * v[i];
                 system.configuration.positions[i].apply_pbc(system.configuration.box_length);
             }
         }
