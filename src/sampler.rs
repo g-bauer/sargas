@@ -2,6 +2,8 @@ use crate::system::System;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use chemfiles::{Trajectory, Frame, UnitCell};
+use std::path::{Path, PathBuf};
 
 pub trait Sampler {
     fn name(&self) -> String;
@@ -206,6 +208,54 @@ impl Sampler for WidomSampler {
     }
 }
 
+pub struct TrajectoryWriter {
+    filename: PathBuf,
+    frequency: usize,
+    step: usize
+}
+
+impl TrajectoryWriter {
+    pub fn new(filename: PathBuf, frequency: usize) -> Result<Self, String> {
+        let trajectory = Trajectory::open_with_format(filename.clone(), 'w', "").unwrap();
+        Ok(Self {
+            filename,
+            frequency,
+            step: 0,
+        })
+    }
+}
+
+impl Sampler for TrajectoryWriter {
+    fn name(&self) -> String {
+        String::from("trajectory")
+    }
+
+    fn sample(&mut self, system: &System) {
+        let mut trj = Trajectory::open_with_format(self.filename.clone(), 'a', "").unwrap();
+        let mut frame = Frame::new();
+        frame.resize(system.configuration.positions.len());
+        frame.set_step(self.step);
+        let l = system.configuration.box_length;
+        frame.set_cell(&UnitCell::new([l, l, l]));
+
+        for (p, frame_position) in system.configuration.positions.iter().zip(frame.positions_mut()) {
+            *frame_position = [p.x, p.y, p.z];
+        }
+
+        trj.write(&frame).unwrap();
+        self.step += 1;
+    }
+
+    fn frequency(&self) -> usize {
+        self.frequency
+    }
+
+    fn property(&self) -> HashMap<String, Vec<f64>> {
+        HashMap::new()
+    }
+}
+
+
 #[cfg(feature = "python")]
 pub mod python {
     use super::*;
@@ -238,6 +288,13 @@ pub mod python {
         fn properties(frequency: usize, capacity: Option<usize>) -> Self {
             Self {
                 _data: Rc::new(RefCell::new(PropertiesSampler::new(frequency, capacity))),
+            }
+        }
+
+        #[staticmethod]
+        fn trajectory(filename: &str, frequency: usize) -> Self {
+            Self {
+                _data: Rc::new(RefCell::new(TrajectoryWriter::new(PathBuf::from(filename), frequency).unwrap())),
             }
         }
 

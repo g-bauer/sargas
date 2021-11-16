@@ -9,6 +9,7 @@ use rand::{distributions::Uniform, thread_rng};
 use rand_distr::Distribution;
 use std::cell::RefCell;
 use std::rc::Rc;
+use chemfiles::{Trajectory, UnitCell, Frame};
 
 pub struct System {
     pub configuration: Configuration,

@@ -4,6 +4,8 @@ use crate::system::System;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{borrow::Borrow, cell::RefCell};
+use chemfiles::{Trajectory, UnitCell, Frame};
+
 
 /// A molecular simulation object.
 pub struct Simulation {
