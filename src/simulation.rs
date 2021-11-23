@@ -157,6 +157,21 @@ pub mod python {
 
     #[pymethods]
     impl PySimulation {
+        /// Run a Monte-Carlo simulation.
+        ///
+        /// Parameters
+        /// ----------
+        /// system : System
+        ///     the system to simulate
+        /// propagator : MonteCarlo
+        ///     the Monte-Carlo propagator with MC moves
+        /// adjustment_frequency : int, optional
+        ///     the frequency with which the maximum displacement
+        ///     is updated. Defaults to None.
+        ///
+        /// Returns
+        /// -------
+        /// Simulation : a Monte-Carlo simulation.
         #[staticmethod]
         fn monte_carlo(
             system: PySystem,
@@ -181,6 +196,12 @@ pub mod python {
             }
         }
 
+        /// Add a sampler to the simulation
+        ///
+        /// Parameters
+        /// ----------
+        /// sampler : Sampler
+        ///     the sampler that is added to the simulation
         fn add_sampler(&mut self, sampler: &PySampler) {
             self._data.add_sampler(sampler._data.clone())
         }
@@ -189,10 +210,24 @@ pub mod python {
             self._data.remove_sampler(sampler._data.clone())
         }
 
+        /// Deactivates updates to propagator
+        ///
+        /// For Monte-Carlo simulations, this option deactivates
+        /// updates for the adjustment of displacement or volume
+        /// change amplitudes.
         fn deactivate_propagator_updates(&mut self) {
             self._data.deactivate_propagator_updates()
         }
 
+        /// Propagate a simulation for a number of steps.
+        ///
+        /// For Monte-Carlo a step is applying a single MCMove,
+        /// while for Molecular Dynamics it is a single integration step.
+        ///
+        /// Parameters
+        /// ----------
+        /// steps : int
+        ///     the number of steps the simulation is propagated
         fn run(&mut self, py: Python, steps: usize) -> PyResult<()> {
             self._data.run_cancelable(py, steps)
         }

@@ -11,13 +11,13 @@ crate-type = ["cdylib", "rlib"]
 ndarray = "0.15"
 rand = "0.8"
 rand_distr = "0.4.0"
-numpy = { version = "0.13.2", optional = true }
+numpy = { version = "0.15", optional = true }
 itertools = "0.10"
 chemfiles = { git = "https://github.com/chemfiles/chemfiles.rs", branch = "chemfiles-0.10.2"}
 approx = "*"
 
 [dependencies.pyo3]
-version = "0.13.2"
+version = "0.15"
 optional = true
 
 [profile.release]

@@ -296,6 +296,18 @@ pub mod python {
     use numpy::{IntoPyArray, PyArray2};
     use pyo3::prelude::*;
 
+    /// A system.
+    ///
+    /// Parameters
+    /// ----------
+    /// configuration : Configuration
+    ///     the configuration
+    /// potential : Potential
+    ///     the pair potential
+    ///
+    /// Returns
+    /// -------
+    /// System : the system.
     #[pyclass(name = "System", unsendable)]
     #[derive(Clone)]
     pub struct PySystem {
@@ -309,7 +321,7 @@ pub mod python {
             Self {
                 _data: Rc::new(RefCell::new(System::new(
                     configuration._data,
-                    potential._data,
+                    potential.0,
                 ))),
             }
         }

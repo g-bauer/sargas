@@ -253,6 +253,21 @@ pub mod python {
 
     #[pymethods]
     impl PyConfiguration {
+        /// Place particles on a lattice.
+        ///
+        /// Parameters
+        /// ----------
+        /// nparticles : int
+        ///     number of particles
+        /// density : float
+        ///     reduced density
+        /// max_nparticles : int, optional
+        ///     maximum number of particles.
+        ///     Defaults to nparticles if not provided.
+        ///
+        /// Returns
+        /// -------
+        /// Configuration
         #[staticmethod]
         fn lattice(
             nparticles: usize,

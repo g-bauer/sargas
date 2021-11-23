@@ -192,12 +192,28 @@ pub mod python {
 
     #[pyclass(name = "Potential", unsendable)]
     #[derive(Clone)]
-    pub struct PyPotential {
-        pub _data: Rc<dyn Potential>,
-    }
+    pub struct PyPotential(pub Rc<dyn Potential>);
 
     #[pymethods]
     impl PyPotential {
+        /// Lennard-Jones potential
+        ///
+        /// Parameters
+        /// ----------
+        /// sigma : float
+        ///     Lennard-Jones size parameter
+        /// epsilon : float
+        ///     Lennard-Jones energetic parameter
+        /// rc : float
+        ///     cut-off radius
+        /// tail_correction : bool
+        ///     if true, tail corrections to energy and virial are computed
+        /// shift_at : float, optional
+        ///     shift potential to zero at given value. Defaults to None.
+        ///
+        /// Returns
+        /// -------
+        /// Potential
         #[staticmethod]
         fn lennard_jones(
             sigma: f64,
@@ -207,30 +223,40 @@ pub mod python {
             shift_at: Option<f64>,
         ) -> Self {
             match shift_at {
-                None => Self {
-                    _data: Rc::new(LennardJones::new(sigma, epsilon, rc, tail_correction)),
-                },
-                Some(s) => Self {
-                    _data: Rc::new(LennardJones::new_shifted(
+                None => Self(Rc::new(LennardJones::new(sigma, epsilon, rc, tail_correction))),
+                Some(s) => Self(
+                    Rc::new(LennardJones::new_shifted(
                         sigma,
                         epsilon,
                         s,
                         tail_correction,
                     )),
-                },
+                ),
             }
         }
 
         #[staticmethod]
         fn hard_sphere(sigma: f64, rc: f64) -> Self {
-            Self {
-                _data: Rc::new(HardSphere::new(sigma, rc)),
-            }
+            Self(Rc::new(HardSphere::new(sigma, rc)))
         }
 
         #[getter]
         fn get_rc2(&self) -> f64 {
-            self._data.rc2()
+            self.0.rc2()
+        }
+
+        /// Pair energy
+        ///
+        /// Parameters
+        /// ----------
+        /// r2 : float
+        ///     squared distance
+        ///
+        /// Returns
+        /// -------
+        /// float : energy
+        fn energy(&self, r2: f64) -> f64 {
+            self.0.energy(r2)
         }
     }
 
