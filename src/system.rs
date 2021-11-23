@@ -1,15 +1,12 @@
 use crate::configuration::{maxwell_boltzmann, Configuration};
 use crate::potential::Potential;
 use crate::vec::Vec3;
-use itertools::FoldWhile::{Continue, Done};
-use itertools::Itertools;
 use ndarray::{Array1, Array2};
 
 use rand::{distributions::Uniform, thread_rng};
 use rand_distr::Distribution;
 use std::cell::RefCell;
 use std::rc::Rc;
-use chemfiles::{Trajectory, UnitCell, Frame};
 
 pub struct System {
     pub configuration: Configuration,
@@ -36,6 +33,10 @@ impl System {
         system
     }
 
+    /// Calculate the energy of particle `i`.
+    ///
+    /// If a `start_idx` is provided, only particles with
+    /// index larger or equal to the `start_idx` are considered.
     pub fn particle_energy(&self, i: usize, start_idx: Option<usize>) -> f64 {
         if self.configuration.nparticles == 0 {
             return 0.0;
@@ -63,6 +64,10 @@ impl System {
         energy
     }
 
+    /// Calculate the energy and virial of particle `i`.
+    ///
+    /// If a `start_idx` is provided, only particles with
+    /// index larger or equal to the `start_idx` are considered.
     pub fn particle_energy_virial(&self, i: usize, start_idx: Option<usize>) -> (f64, f64) {
         if self.configuration.nparticles == 0 {
             return (0.0, 0.0);
@@ -147,38 +152,41 @@ impl System {
         })
     }
 
+    /// Calculate the system energy.
     pub fn energy(&self) -> f64 {
         if self.configuration.nparticles == 0 {
             return 0.0;
         }
-        let u_tail = self
+        let mut energy = self
             .potential
             .energy_tail(self.configuration.density(), self.configuration.nparticles);
-        (0..self.configuration.nparticles - 1)
-            .fold_while(u_tail, |energy, i| {
-                match self.particle_energy(i, Some(i + 1)) {
-                    u if u.is_finite() => Continue(energy + u),
-                    _ => Done(f64::INFINITY),
-                }
-            })
-            .into_inner()
+        for i in 0..self.configuration.nparticles - 1 {
+            energy += match self.particle_energy(i, Some(i + 1)) {
+                u if u.is_finite() => u,
+                _ => return energy,
+            }
+        }
+        energy
     }
 
+    /// Calculate the system energy and virial.
     pub fn energy_virial(&self) -> (f64, f64) {
         if self.configuration.nparticles == 0 {
             return (0.0, 0.0);
         }
-        let u_tail = self
+        let mut virial = 0.0;
+        let mut energy = self
             .potential
             .energy_tail(self.configuration.density(), self.configuration.nparticles);
-        (0..self.configuration.nparticles - 1)
-            .fold_while((u_tail, 0.0), |(energy, virial), i| {
-                match self.particle_energy_virial(i, Some(i + 1)) {
-                    (u, v) if u.is_finite() => Continue((energy + u, virial + v)),
-                    _ => Done((f64::INFINITY, f64::INFINITY)),
-                }
-            })
-            .into_inner()
+        for i in 0..self.configuration.nparticles - 1 {
+            let (u, v) = match self.particle_energy_virial(i, Some(i + 1)) {
+                (u, v) if u.is_finite() => (u, v),
+                _ => return (energy, virial),
+            };
+            energy += u;
+            virial += v;
+        }
+        (energy, virial)
     }
 
     /// Sets random velocities according to current kinetic energy and
@@ -280,12 +288,6 @@ impl System {
     pub fn density(&self) -> f64 {
         self.configuration.density()
     }
-
-    /// System pressure without ideal gas contribution.
-    #[inline]
-    pub fn residual_pressure(&self) -> f64 {
-        self.virial / (3.0 * self.volume()) + self.potential.pressure_tail(self.density())
-    }
 }
 
 #[cfg(feature = "python")]
@@ -319,10 +321,7 @@ pub mod python {
         #[new]
         fn new(configuration: PyConfiguration, potential: PyPotential) -> Self {
             Self {
-                _data: Rc::new(RefCell::new(System::new(
-                    configuration._data,
-                    potential.0,
-                ))),
+                _data: Rc::new(RefCell::new(System::new(configuration._data, potential.0))),
             }
         }
         // #[staticmethod]

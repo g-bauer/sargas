@@ -4,8 +4,6 @@ use crate::system::System;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{borrow::Borrow, cell::RefCell};
-use chemfiles::{Trajectory, UnitCell, Frame};
-
 
 /// A molecular simulation object.
 pub struct Simulation {
@@ -82,33 +80,6 @@ impl Simulation {
         }
     }
 }
-
-// #[cfg(feature = "python")]
-// impl Simulation {
-//     pub fn run_cancelable(&mut self, py: Python, steps: usize) -> PyResult<()> {
-//         let mut s = self.system.borrow_mut();
-//         s.recompute();
-//         for _ in 1..=steps {
-//             self.step += 1;
-//             self.propagator.borrow_mut().propagate(&mut s);
-
-//             match self.adjustment_frequency {
-//                 Some(f) if self.step % f == 0 => self.propagator.borrow_mut().adjust(&mut s),
-//                 _ => (),
-//             }
-
-//             {
-//                 let i = self.step;
-//                 self.samplers.iter_mut().for_each(|(_, v)| {
-//                     let mut o = v.borrow_mut();
-//                     if i % o.frequency() == 0 {
-//                         o.sample(&s)
-//                     }
-//                 });
-//             }
-//         }
-//     }
-// }
 
 #[cfg(feature = "python")]
 pub mod python {
@@ -242,43 +213,6 @@ pub mod python {
     //             self._data.system.as_ref().borrow().to_string(),
     //             // self._data.propagator.to_string(),
     //         )))
-    //     }
-    // }
-
-    // #[pyclass(name = "MolecularDynamics", unsendable)]
-    // pub struct MolecularDynamics {
-    //     _data: Simulation<VelocityVerlet>,
-    // }
-
-    // #[pymethods]
-    // impl MolecularDynamics {
-    //     #[new]
-    //     fn new(
-    //         System: PySystem,
-    //         propagator: PyVelocityVerlet,
-    //     ) -> Self {
-    //         Self {
-    //             _data: Simulation::new(System._data, propagator._data, None).unwrap(),
-    //         }
-    //     }
-
-    //     fn add_sampler(&mut self, sampler: &PySampler) {
-    //         self._data.add_sampler(sampler._data.clone())
-    //     }
-
-    //     fn remove_sampler(&mut self, sampler: &PySampler) {
-    //         self._data.remove_sampler(sampler._data.clone())
-    //     }
-
-    //     fn run(&mut self, steps: usize) {
-    //         self._data.run(steps)
-    //     }
-    // }
-
-    // #[pyproto]
-    // impl PyObjectProtocol for MolecularDynamics {
-    //     fn __repr__(&self) -> PyResult<String> {
-    //         Ok(fmt::format(format_args!("Molecular Dynamics Simulation (NVE)\n==========\n")))
     //     }
     // }
 }

@@ -63,45 +63,6 @@ impl Configuration {
         }
     }
 
-    // pub fn insert_particles(
-    //     nparticles: usize,
-    //     volume: f64,
-    //     temperature: f64,
-    //     chemical_potential: f64,
-    //     rc: f64,
-    //     potential: Rc<dyn Potential>,
-    //     max_nparticles: usize,
-    //     insertion_tries: Option<usize>,
-    // ) -> Result<Self, String> {
-    //     let insertions = insertion_tries.unwrap_or(10000);
-    //     let positions = Vec::with_capacity(max_nparticles);
-    //     let velocities = Vec::with_capacity(max_nparticles);
-    //     let forces = Vec::with_capacity(max_nparticles);
-    //     let box_length = volume.cbrt();
-    //     let mut system = Self {
-    //         nparticles: 0,
-    //         positions,
-    //         velocities,
-    //         forces,
-    //         box_length,
-    //         energy: 0.0,
-    //         virial: 0.0,
-    //         kinetic_energy: 0.0,
-    //         max_nparticles: max_nparticles,
-    //         compute_forces: true,
-    //     };
-    //     let mut mv = InsertDeleteParticle::new(chemical_potential);
-    //     for _ in 0..insertions {
-    //         mv.insert_particle(&mut system);
-    //         if system.nparticles == nparticles {
-    //             system.reset();
-    //             return Ok(system);
-    //         }
-    //         // println!("try: {}, n: {}", i, system.nparticles);
-    //     }
-    //     Err(format!("Could not insert all particles (currently: {}). Try to increase number of insertion tries.", system.nparticles))
-    // }
-
     pub fn from_file<P: AsRef<Path>>(
         path: P,
         box_length: f64,
@@ -119,7 +80,7 @@ impl Configuration {
         };
         frame.set_cell(&UnitCell::new([box_length, box_length, box_length]));
         let box_length = frame.cell().lengths()[0];
-        let forces = Vec::with_capacity(max_nparticles);
+        let forces: Vec<Vec3> = (0..nparticles).map(|_| Vec3::zero()).collect();
         Ok(Self {
             nparticles,
             positions,
@@ -284,59 +245,6 @@ pub mod python {
                 ),
             }
         }
-
-        // // #[staticmethod]
-        // // fn insert_particles(
-        // //     nparticles: usize,
-        // //     volume: f64,
-        // //     temperature: f64,
-        // //     chemical_potential: f64,
-        // //     rc: f64,
-        // //     potential: PyPotential,
-        // //     max_nparticles: Option<usize>,
-        // //     insertion_tries: Option<usize>,
-        // // ) -> PyResult<Self> {
-        // //     Ok(Self {
-        // //         _data: Rc::new(RefCell::new(
-        // //             Configuration::insert_particles(
-        // //                 nparticles,
-        // //                 volume,
-        // //                 temperature,
-        // //                 chemical_potential,
-        // //                 rc,
-        // //                 potential._data.clone(),
-        // //                 max_nparticles.unwrap_or(nparticles),
-        // //                 insertion_tries,
-        // //             )
-        // //             .map_err(|e| PyRuntimeError::new_err(e))?,
-        // //         )),
-        // //     })
-        // // }
-        // #[getter]
-        // fn get_box_length(&self) -> f64 {
-        //     self._data.box_length
-        // }
-
-        // #[getter]
-        // fn get_nparticles(&self) -> usize {
-        //     self._data.nparticles
-        // }
-
-        // #[getter]
-        // fn get_positions<'py>(&self, py: Python<'py>) -> &'py PyArray2<f64> {
-        //     self._data.positions().into_pyarray(py)
-        // }
-
-        // #[getter]
-        // fn get_velocities<'py>(&self, py: Python<'py>) -> &'py PyArray2<f64> {
-        //     // Todo: use Option
-        //     self._data.velocities().unwrap().into_pyarray(py)
-        // }
-
-        // #[getter]
-        // fn get_forces<'py>(&self, py: Python<'py>) -> &'py PyArray2<f64> {
-        //     self._data.forces().into_pyarray(py)
-        // }
     }
 
     #[pyproto]

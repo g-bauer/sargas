@@ -1,6 +1,7 @@
 use sargas::configuration::Configuration;
 use sargas::potential::LennardJones;
 use sargas::system::System;
+use std::f64::consts::PI;
 use std::path::Path;
 use std::rc::Rc;
 
@@ -23,28 +24,84 @@ mod assignment1 {
     }
 
     #[test]
-    fn nearest_image_distance() {
+    fn nearest_image_convention() {
         let r1 = Vec3::new(1.0, 0.0, 0.0);
         let r2 = Vec3::new(5.0, 0.0, 0.0);
         let distance = (r2 - r1).nearest_image(6.0).norm2();
-        assert_relative_eq!(distance, 2.0)
+        assert_relative_eq!(distance, 2.0);
+
+        let r1 = Vec3::new(1.0, 0.0, 0.0);
+        let r2 = Vec3::new(2.0, 0.0, 0.0);
+        let distance = (r2 - r1).nearest_image(6.0).norm2();
+        assert_relative_eq!(distance, 1.0)
     }
 
     #[test]
-    fn periodic_boundary_conditions() {
+    fn periodic_boundary_condition() {
         let mut r1 = Vec3::new(6.0, 6.0, 6.0);
         r1.apply_pbc(5.0);
         assert_relative_eq!(r1.x, 1.0);
         assert_relative_eq!(r1.y, 1.0);
         assert_relative_eq!(r1.y, 1.0);
+
+        let mut r1 = Vec3::new(3.0, 3.0, 3.0);
+        r1.apply_pbc(5.0);
+        assert_relative_eq!(r1.x, 3.0);
+        assert_relative_eq!(r1.y, 3.0);
+        assert_relative_eq!(r1.y, 3.0);
     }
 
     #[test]
-    fn lennard_jones() {
+    fn lennard_jones_virial() {
         let lj: Box<dyn Potential> = Box::new(LennardJones::new(1.0, 1.0, 3.0, false));
         let r_min = 2.0f64.powf(1.0 / 6.0);
         assert_relative_eq!(lj.energy(r_min.powi(2)), -1.0);
         assert_relative_eq!(lj.virial(r_min.powi(2)), 0.0);
+        assert_relative_eq!(lj.virial(9.0), -0.03283149023127684);
+    }
+
+    #[test]
+    fn lennard_jones_shift() {
+        let lj: Box<dyn Potential> = Box::new(LennardJones::new_shifted(1.0, 1.0, 3.0, false));
+        let r_min = 2.0f64.powf(1.0 / 6.0);
+        assert_relative_eq!(lj.virial(r_min.powi(2)), 0.0);
+        assert_relative_eq!(lj.virial(9.0), -0.03283149023127684);
+
+        assert_relative_eq!(lj.energy(3.0_f64.powi(2)), 0.0);
+        assert_relative_eq!(lj.energy(2.5_f64.powi(2)), -0.010837449391761223);
+    }
+
+    #[test]
+    fn lennard_jones_energy_tail() {
+        let density = 0.8;
+        let nparticles = 1337;
+        let sigma = 1.234;
+        let epsilon = 5.67;
+        let rc = 3.0 * sigma;
+
+        let lj: Box<dyn Potential> = Box::new(LennardJones::new(sigma, epsilon, rc, true));
+
+        assert_relative_eq!(
+            lj.energy_tail(density, nparticles),
+            -3534.32227313446,
+            max_relative = 1e-12
+        );
+    }
+
+    #[test]
+    fn lennard_jones_pressure_tail() {
+        let density = 0.8;
+        let sigma = 1.234;
+        let epsilon = 5.67;
+        let rc = 3.0 * sigma;
+
+        let lj: Box<dyn Potential> = Box::new(LennardJones::new(sigma, epsilon, rc, true));
+
+        assert_relative_eq!(
+            lj.pressure_tail(density),
+            -4.227620612464192,
+            max_relative = 1e-12
+        );
     }
 
     #[test]

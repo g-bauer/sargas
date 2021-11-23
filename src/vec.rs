@@ -22,7 +22,7 @@ impl Vec3 {
     }
 
     pub fn len(&self) -> f64 {
-        self.dot(&self).sqrt()
+        self.norm2()
     }
 
     #[inline]
@@ -57,6 +57,7 @@ impl Vec3 {
         (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
     }
 
+    /// Applies periodic boundary conditions for cubic box to a Vec3 in place.
     #[inline]
     pub fn apply_pbc(&mut self, box_length: f64) {
         self.x += if self.x < 0.0 {
@@ -83,37 +84,12 @@ impl Vec3 {
     }
 
     #[inline]
-    pub fn pbc(&mut self, box_length: f64) -> Self {
-        let f = |v: f64| match v {
-            v if v < 0.0 => v + box_length,
-            v if v >= box_length => v - box_length,
-            _ => v,
-        };
-        self.map(f)
-    }
-
-    #[inline]
-    pub fn pbc_inplace(&mut self, box_length: f64) {
-        let f = |v: f64| match v {
-            v if v < 0.0 => v + box_length,
-            v if v >= box_length => v - box_length,
-            _ => v,
-        };
-        self.map_inplace(f)
-    }
-
-    #[inline]
     pub fn nearest_image(&self, box_length: f64) -> Self {
         let il = 1.0 / box_length;
-        let f = |v: f64| v - box_length * f64::round(v * il);
-        self.map(f)
-    }
-
-    #[inline]
-    pub fn nearest_image_inplace(&mut self, box_length: f64) {
-        let il = 1.0 / box_length;
-        let f = |v: f64| v - box_length * f64::round(v * il);
-        self.map_inplace(f)
+        let x = self.x - box_length * (self.x * il).round();
+        let y = self.y - box_length * (self.y * il).round();
+        let z = self.z - box_length * (self.z * il).round();
+        Self { x, y, z }
     }
 }
 
