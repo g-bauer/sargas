@@ -57,7 +57,7 @@ impl InsertDeleteParticle {
                 / system.configuration.density()
         {
             self.accepted += 1;
-            system.energy += energy;
+            system.potential_energy += energy;
             system.virial += virial;
         } else {
             system.configuration.positions.pop();
@@ -80,7 +80,7 @@ impl InsertDeleteParticle {
                 * system.configuration.density()
         {
             self.accepted += 1;
-            system.energy -= energy;
+            system.potential_energy -= energy;
             system.virial -= virial;
             system.configuration.positions.remove(i);
             system.configuration.nparticles = system.configuration.positions.len();

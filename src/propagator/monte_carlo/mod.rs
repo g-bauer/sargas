@@ -65,7 +65,7 @@ impl Propagator for MonteCarlo {
             .apply(system)
     }
 
-    fn adjust(&mut self, system: &System) {
+    fn adjust(&mut self, system: &mut System) {
         self.moves
             .iter()
             .for_each(|m| m.as_ref().borrow_mut().adjust(&system))
@@ -74,12 +74,33 @@ impl Propagator for MonteCarlo {
 
 #[cfg(feature = "python")]
 pub mod python {
+    use super::change_volume::ChangeVolume;
+    use super::displace_particle::DisplaceParticle;
+    use super::insert_particle::InsertDeleteParticle;
     use super::*;
     use pyo3::prelude::*;
-    use super::displace_particle::DisplaceParticle;
-    use super::change_volume::ChangeVolume;
-    use super::insert_particle::InsertDeleteParticle;
 
+    /// Metropolis Monte-Carlo propagator.
+    ///
+    /// Each step, picks a move according to its weight.
+    /// A move is accepted according to the Metropolis acceptance criterion.
+    ///
+    /// Parameters
+    /// ----------
+    /// moves : List[MCMove]
+    ///     the moves used to change the system
+    /// weights : List[int]
+    ///     the weights for each move.
+    ///     Weights are automatically normalized.
+    ///     E.g. consider "move 1" and "move 2" with weights=[1, 3].
+    ///     The probability of picking "move 1" is
+    ///     0.25 while the probability of "move 2" is 0.75.
+    /// temperature : float
+    ///     reduced temperature
+    ///
+    /// Returns
+    /// -------
+    /// MonteCarlo : Metropolis Monte-Carlo propagator.
     #[pyclass(name = "MonteCarlo", unsendable)]
     #[derive(Clone)]
     pub struct PyMonteCarlo {
@@ -104,6 +125,21 @@ pub mod python {
 
     #[pymethods]
     impl PyMCMove {
+        /// Randomly choose a particle and translate it.
+        ///
+        /// Parameters
+        /// ----------
+        /// maximum_displacement : float
+        ///     the maximum distance a particle is moved
+        /// target_acceptance : float
+        ///     probability with which move should be accepted.
+        ///     Must be between 0 and 1.
+        /// temperature : float
+        ///     reduced temperature
+        ///
+        /// Returns
+        /// -------
+        /// McMove : the Monte-Carlo move to displace a particle.
         #[staticmethod]
         fn displace_particle(
             maximum_displacement: f64,
