@@ -202,17 +202,12 @@ pub mod python {
         fn run(&mut self, py: Python, steps: usize) -> PyResult<()> {
             self._data.run_cancelable(py, steps)
         }
-    }
 
-    // #[pyproto]
-    // impl PyObjectProtocol for PySimulation {
-    //     fn __repr__(&self) -> PyResult<String> {
-    //         Ok(fmt::format(format_args!(
-    //             "Simulation\n==========\nadjust displacement: {}\n\n{}\n\n",
-    //             self._data.adjustment_frequency.is_some(),
-    //             self._data.system.as_ref().borrow().to_string(),
-    //             // self._data.propagator.to_string(),
-    //         )))
-    //     }
-    // }
+        // fn __repr__(&self) -> PyResult<String> {
+        //     Ok(fmt::format(format_args!(
+        //         "Simulation\n==========\ndisplacement acceptance: {}\n\n",
+        //         self._data.propagator.as.to_string(),
+        //     )))
+        // }
+    }
 }

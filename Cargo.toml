@@ -15,6 +15,7 @@ numpy = { version = "0.15", optional = true }
 itertools = "0.10"
 chemfiles = { git = "https://github.com/chemfiles/chemfiles.rs", branch = "chemfiles-0.10.2"}
 approx = "*"
+thiserror = "1.0"
 
 [dependencies.pyo3]
 version = "0.15"

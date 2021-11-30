@@ -1,4 +1,4 @@
-use super::Propagator;
+use super::{Propagator, PropagatorError};
 use std::cell::RefCell;
 use std::rc::Rc;
 pub mod change_volume;
@@ -58,11 +58,12 @@ impl MonteCarlo {
 }
 
 impl Propagator for MonteCarlo {
-    fn propagate(&mut self, system: &mut System) {
+    fn propagate(&mut self, system: &mut System) -> Result<(), PropagatorError> {
         self.moves[self.weights.sample(&mut self.rng)]
             .as_ref()
             .borrow_mut()
-            .apply(system)
+            .apply(system);
+        Ok(())
     }
 
     fn adjust(&mut self, system: &mut System) {
