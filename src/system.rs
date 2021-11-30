@@ -237,6 +237,9 @@ impl System {
 
     /// Computes and overwrites forces between all particles in the system.
     pub fn compute_forces_inplace(&mut self) {
+        if self.configuration.nparticles == 0 {
+            return;
+        }
         let box_length = self.configuration.box_length;
         self.configuration
             .forces

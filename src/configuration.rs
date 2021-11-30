@@ -16,6 +16,18 @@ pub struct Configuration {
 }
 
 impl Configuration {
+    pub fn new(positions: Vec<Vec3>, velocities: Option<Vec<Vec3>>, box_length: f64) -> Self {
+        let nparticles = positions.len();
+        Self {
+            nparticles,
+            positions,
+            velocities,
+            forces: Vec::with_capacity(nparticles),
+            box_length,
+            max_nparticles: nparticles,
+        }
+    }
+
     pub fn lattice(
         nparticles: usize,
         density: f64,
@@ -60,6 +72,17 @@ impl Configuration {
             forces,
             box_length,
             max_nparticles: max_nparticles,
+        }
+    }
+
+    pub fn without_particles() -> Self {
+        Self {
+            nparticles: 0,
+            positions: vec![],
+            velocities: None,
+            forces: vec![],
+            box_length: 0.0,
+            max_nparticles: 0,
         }
     }
 
