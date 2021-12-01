@@ -1,4 +1,5 @@
-use super::{Propagator, PropagatorError};
+use super::{Propagator};
+use crate::error::SargasError;
 use crate::system::System;
 use crate::{configuration::Configuration, vec::Vec3};
 use chemfiles::{Frame, Trajectory};
@@ -11,7 +12,7 @@ pub struct TrajectoryReader {
 }
 
 impl TrajectoryReader {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, PropagatorError> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, SargasError> {
         let mut trajectory = Trajectory::open(path, 'r')?;
         let nsteps = trajectory.nsteps();
         Ok(Self {
@@ -23,11 +24,11 @@ impl TrajectoryReader {
 }
 
 impl Propagator for TrajectoryReader {
-    fn propagate(&mut self, system: &mut System) -> Result<(), PropagatorError> {
+    fn propagate(&mut self, system: &mut System) -> Result<(), SargasError> {
         let mut frame = Frame::new();
         self.current_step += 1;
         if self.current_step == self.nsteps {
-            return Err(PropagatorError::TrajectoryEnd);
+            return Err(SargasError::TrajectoryEnd);
         }
         self.trajectory.read_step(self.current_step, &mut frame)?;
         let box_length = frame.cell().lengths()[0];

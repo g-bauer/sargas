@@ -214,7 +214,7 @@ impl Sampler for WidomSampler {
         let density = system.density();
         let nparticles = system.configuration.nparticles;
         let u_tail = system.potential.energy_tail(density, nparticles) / nparticles as f64;
-        // current_mu_mean is the last value that was recorded for <exp(-beta deltaU)>
+        // current_boltzmann_factor_mean is the last value that was recorded for <exp(-beta deltaU)>
         let new_boltzmann_factor_mean =
             if let Some(current_boltzmann_factor_mean) = self.boltzmann_factor.last() {
                 (current_boltzmann_factor_mean * self.inserted as f64 + sum_boltzmann_factor)

@@ -1,4 +1,5 @@
 use crate::configuration::{maxwell_boltzmann, Configuration};
+use crate::error::SargasError;
 use crate::potential::Potential;
 use crate::vec::Vec3;
 use ndarray::{Array1, Array2};
@@ -17,7 +18,16 @@ pub struct System {
 }
 
 impl System {
-    pub fn new(configuration: Configuration, potential: Rc<dyn Potential>) -> Self {
+    pub fn new(
+        configuration: Configuration,
+        potential: Rc<dyn Potential>,
+    ) -> Result<Self, SargasError> {
+        if potential.rc2().sqrt() > 0.5 * configuration.box_length && configuration.nparticles != 0 {
+            return Err(SargasError::InvalidCutoff {
+                found: potential.rc2().sqrt(),
+                maximum: 0.5 * configuration.box_length,
+            });
+        }
         let mut system = Self {
             configuration,
             potential,
@@ -30,7 +40,7 @@ impl System {
         system.virial = v;
         system.compute_forces_inplace();
         system.kinetic_energy = system.configuration.kinetic_energy_from_velocities();
-        system
+        Ok(system)
     }
 
     /// Calculate the energy of particle `i`.
@@ -331,10 +341,13 @@ pub mod python {
     #[pymethods]
     impl PySystem {
         #[new]
-        fn new(configuration: PyConfiguration, potential: PyPotential) -> Self {
-            Self {
-                _data: Rc::new(RefCell::new(System::new(configuration._data, potential.0))),
-            }
+        fn new(
+            configuration: PyConfiguration,
+            potential: PyPotential,
+        ) -> Result<Self, SargasError> {
+            Ok(Self {
+                _data: Rc::new(RefCell::new(System::new(configuration._data, potential.0)?)),
+            })
         }
         // #[staticmethod]
         // fn from_lattice(

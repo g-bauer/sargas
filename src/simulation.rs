@@ -1,9 +1,10 @@
-use crate::propagator::{Propagator, PropagatorError};
+use crate::propagator::Propagator;
 use crate::sampler::Sampler;
 use crate::system::System;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{borrow::Borrow, cell::RefCell};
+use crate::error::SargasError;
 
 /// A molecular simulation object.
 pub struct Simulation {
@@ -56,7 +57,7 @@ impl Simulation {
         self.adjustment_frequency = None
     }
 
-    pub fn run(&mut self, steps: usize) -> Result<(), PropagatorError> {
+    pub fn run(&mut self, steps: usize) -> Result<(), SargasError> {
         let mut s = self.system.borrow_mut();
         if self.step == 0 || self.step % 100_000 == 0 {
             s.recompute_energy_forces();
@@ -191,7 +192,7 @@ pub mod python {
         fn rerun_trajectory(potential: PyPotential, path: String) -> PyResult<Self> {
             let reader = Rc::new(RefCell::new(TrajectoryReader::new(path)?));
             let configuration = Configuration::without_particles();
-            let system = Rc::new(RefCell::new(System::new(configuration, potential.0)));
+            let system = Rc::new(RefCell::new(System::new(configuration, potential.0)?));
             Ok(Self {
                 _data: Simulation::new(system, reader, None).unwrap(),
             })

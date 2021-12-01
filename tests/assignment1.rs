@@ -1,11 +1,11 @@
 use sargas::configuration::Configuration;
+use sargas::error::SargasError;
 use sargas::potential::LennardJones;
 use sargas::system::System;
-use std::f64::consts::PI;
 use std::path::Path;
 use std::rc::Rc;
 
-pub fn get_system(name: &str, rc: f64, box_length: f64) -> System {
+pub fn get_system(name: &str, rc: f64, box_length: f64) -> Result<System, SargasError> {
     let path = Path::new(file!()).parent().unwrap().join(name);
     let potential = Rc::new(LennardJones::new(1.0, 1.0, rc, true));
     let configuration = Configuration::from_file(path, box_length, 800).unwrap();
@@ -15,6 +15,7 @@ pub fn get_system(name: &str, rc: f64, box_length: f64) -> System {
 mod assignment1 {
     use super::get_system;
     use approx::assert_relative_eq;
+    use sargas::error::SargasError;
     use sargas::potential::{LennardJones, Potential};
     use sargas::vec::Vec3;
 
@@ -105,8 +106,8 @@ mod assignment1 {
     }
 
     #[test]
-    fn nist1() {
-        let system = get_system("lj1.xyz", 3.0, 10.0);
+    fn nist1() -> Result<(), SargasError> {
+        let system = get_system("lj1.xyz", 3.0, 10.0)?;
         let u_tail = system
             .potential
             .energy_tail(system.density(), system.configuration.nparticles);
@@ -114,11 +115,12 @@ mod assignment1 {
         assert_relative_eq!(round_to(u - u_tail, 1), -4351.5, max_relative = 1e-15);
         assert_relative_eq!(round_to(v, 2), -568.67, max_relative = 1e-15);
         assert_relative_eq!(round_to(u_tail, 2), -198.49, max_relative = 1e-15);
+        Ok(())
     }
 
     #[test]
-    fn nist2() {
-        let system = get_system("lj2.xyz", 3.0, 8.0);
+    fn nist2() -> Result<(), SargasError> {
+        let system = get_system("lj2.xyz", 3.0, 8.0)?;
         let u_tail = system
             .potential
             .energy_tail(system.density(), system.configuration.nparticles);
@@ -126,11 +128,12 @@ mod assignment1 {
         assert_relative_eq!(round_to(u - u_tail, 2), -690.00, max_relative = 1e-15);
         assert_relative_eq!(round_to(v, 2), -568.46, max_relative = 1e-15);
         assert_relative_eq!(round_to(u_tail, 3), -24.230, max_relative = 1e-15);
+        Ok(())
     }
 
     #[test]
-    fn nist3() {
-        let system = get_system("lj3.xyz", 3.0, 10.0);
+    fn nist3() -> Result<(), SargasError> {
+        let system = get_system("lj3.xyz", 3.0, 10.0)?;
         let u_tail = system
             .potential
             .energy_tail(system.density(), system.configuration.nparticles);
@@ -138,11 +141,12 @@ mod assignment1 {
         assert_relative_eq!(round_to(u - u_tail, 1), -1146.7, max_relative = 1e-15);
         assert_relative_eq!(round_to(v, 1), -1164.9, max_relative = 1e-15);
         assert_relative_eq!(round_to(u_tail, 3), -49.622, max_relative = 1e-15);
+        Ok(())
     }
 
     #[test]
-    fn nist4() {
-        let system = get_system("lj4.xyz", 3.0, 8.0);
+    fn nist4() -> Result<(), SargasError> {
+        let system = get_system("lj4.xyz", 3.0, 8.0)?;
         let u_tail = system
             .potential
             .energy_tail(system.density(), system.configuration.nparticles);
@@ -150,5 +154,6 @@ mod assignment1 {
         assert_relative_eq!(round_to(u - u_tail, 3), -16.790, max_relative = 1e-15);
         assert_relative_eq!(round_to(v, 3), -46.249, max_relative = 1e-15);
         assert_relative_eq!(round_to(u_tail, 5), -0.54517, max_relative = 1e-15);
+        Ok(())
     }
 }

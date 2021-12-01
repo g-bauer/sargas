@@ -42,7 +42,7 @@ impl LennardJones {
             s6: sigma.powi(6),
             e4: epsilon * 4.0,
             energy_shift: 0.0,
-            squared_overlap_distance: squared_overlap_distance,
+            squared_overlap_distance,
             tail_correction,
         }
     }
@@ -223,15 +223,18 @@ pub mod python {
             shift_at: Option<f64>,
         ) -> Self {
             match shift_at {
-                None => Self(Rc::new(LennardJones::new(sigma, epsilon, rc, tail_correction))),
-                Some(s) => Self(
-                    Rc::new(LennardJones::new_shifted(
-                        sigma,
-                        epsilon,
-                        s,
-                        tail_correction,
-                    )),
-                ),
+                None => Self(Rc::new(LennardJones::new(
+                    sigma,
+                    epsilon,
+                    rc,
+                    tail_correction,
+                ))),
+                Some(s) => Self(Rc::new(LennardJones::new_shifted(
+                    sigma,
+                    epsilon,
+                    s,
+                    tail_correction,
+                ))),
             }
         }
 
