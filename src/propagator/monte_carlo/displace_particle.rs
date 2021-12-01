@@ -53,8 +53,8 @@ impl MCMove for DisplaceParticle {
             .rng
             .sample(Uniform::from(0..system.configuration.nparticles));
 
-        let (energy_old, virial_old) = system.particle_energy_virial(i, None);
         let position_old = system.configuration.positions[i];
+        let (energy_old, virial_old) = system.particle_energy_virial(i, &position_old, None);
         let d = self
             .select_displacement
             .sample_iter(&mut self.rng)
@@ -64,7 +64,7 @@ impl MCMove for DisplaceParticle {
         let mut position_new = position_old + displacement;
         position_new.apply_pbc(system.configuration.box_length);
         system.configuration.positions[i] = position_new;
-        let (energy_new, virial_new) = system.particle_energy_virial(i, None);
+        let (energy_new, virial_new) = system.particle_energy_virial(i, &position_new, None);
 
         let acceptance: f64 = self.rng.gen();
         if acceptance < f64::exp(-self.beta * (energy_new - energy_old)) {

@@ -5,6 +5,7 @@ pub mod sampler;
 pub mod simulation;
 pub mod system;
 pub mod vec;
+pub mod error;
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 
@@ -31,6 +32,9 @@ fn sargas(_: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<propagator::molecular_dynamics::python::PyMolecularDynamics>()?;
     m.add_class::<propagator::molecular_dynamics::python::PyIntegrator>()?;
     m.add_class::<propagator::molecular_dynamics::python::PyThermostat>()?;
+
+    // Trajectory Reader
+    m.add_class::<propagator::trajectory_reader::python::PyTrajectoryReader>()?;
 
     m.add_class::<potential::python::PyPotential>()?;
     m.add_class::<sampler::python::PySampler>()?;

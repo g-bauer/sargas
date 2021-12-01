@@ -1,4 +1,5 @@
 use crate::configuration::{maxwell_boltzmann, Configuration};
+use crate::error::SargasError;
 use crate::potential::Potential;
 use crate::vec::Vec3;
 use ndarray::{Array1, Array2};
@@ -17,7 +18,16 @@ pub struct System {
 }
 
 impl System {
-    pub fn new(configuration: Configuration, potential: Rc<dyn Potential>) -> Self {
+    pub fn new(
+        configuration: Configuration,
+        potential: Rc<dyn Potential>,
+    ) -> Result<Self, SargasError> {
+        if potential.rc2().sqrt() > 0.5 * configuration.box_length && configuration.nparticles != 0 {
+            return Err(SargasError::InvalidCutoff {
+                found: potential.rc2().sqrt(),
+                maximum: 0.5 * configuration.box_length,
+            });
+        }
         let mut system = Self {
             configuration,
             potential,
@@ -30,18 +40,17 @@ impl System {
         system.virial = v;
         system.compute_forces_inplace();
         system.kinetic_energy = system.configuration.kinetic_energy_from_velocities();
-        system
+        Ok(system)
     }
 
     /// Calculate the energy of particle `i`.
     ///
     /// If a `start_idx` is provided, only particles with
     /// index larger or equal to the `start_idx` are considered.
-    pub fn particle_energy(&self, i: usize, start_idx: Option<usize>) -> f64 {
+    pub fn particle_energy(&self, i: usize, position_i: &Vec3, start_idx: Option<usize>) -> f64 {
         if self.configuration.nparticles == 0 {
             return 0.0;
         }
-        let position_i = self.configuration.positions[i];
         let mut energy = 0.0;
         for j in start_idx.unwrap_or(0)..self.configuration.nparticles {
             let uij = if i != j {
@@ -68,11 +77,15 @@ impl System {
     ///
     /// If a `start_idx` is provided, only particles with
     /// index larger or equal to the `start_idx` are considered.
-    pub fn particle_energy_virial(&self, i: usize, start_idx: Option<usize>) -> (f64, f64) {
+    pub fn particle_energy_virial(
+        &self,
+        i: usize,
+        position_i: &Vec3,
+        start_idx: Option<usize>,
+    ) -> (f64, f64) {
         if self.configuration.nparticles == 0 {
             return (0.0, 0.0);
         }
-        let position_i = self.configuration.positions[i];
         let mut energy = 0.0;
         let mut virial = 0.0;
         for j in start_idx.unwrap_or(0)..self.configuration.nparticles {
@@ -124,32 +137,32 @@ impl System {
         })
     }
 
+    ///
     pub fn ghost_particle_energy_sum(&self, beta: f64, ninsertions: usize) -> f64 {
         if self.configuration.nparticles == 0 {
             return 0.0;
         }
         let mut rng = thread_rng();
         let dist = Uniform::new(0.0, self.configuration.box_length);
-
-        (0..ninsertions).fold(0.0, |acc, _| {
+        let mut boltzmann_factor = 0.0;
+        for _ in 0..ninsertions {
+            // position of ghost particle
             let ri = Vec3::new(
                 dist.sample(&mut rng),
                 dist.sample(&mut rng),
                 dist.sample(&mut rng),
             );
-            let energy = self.configuration.positions.iter().fold(0.0, |energy, rj| {
-                energy + {
-                    let rij = (rj - ri).nearest_image(self.configuration.box_length);
-                    let r2 = rij.dot(&rij);
-                    if r2 <= self.potential.rc2() {
-                        self.potential.energy(r2)
-                    } else {
-                        0.0
-                    }
+            let mut energy = 0.0;
+            for rj in self.configuration.positions.iter() {
+                let rij = (rj - ri).nearest_image(self.configuration.box_length);
+                let r2 = rij.dot(&rij);
+                if r2 <= self.potential.rc2() {
+                    energy += self.potential.energy(r2);
                 }
-            });
-            acc + (-beta * energy).exp()
-        })
+            }
+            boltzmann_factor += (-beta * energy).exp();
+        }
+        boltzmann_factor
     }
 
     /// Calculate the system energy.
@@ -160,8 +173,11 @@ impl System {
         let mut energy = self
             .potential
             .energy_tail(self.configuration.density(), self.configuration.nparticles);
-        for i in 0..self.configuration.nparticles - 1 {
-            energy += match self.particle_energy(i, Some(i + 1)) {
+
+        for (i, position_i) in
+            (0..self.configuration.nparticles - 1).zip(self.configuration.positions.iter())
+        {
+            energy += match self.particle_energy(i, position_i, Some(i + 1)) {
                 u if u.is_finite() => u,
                 _ => return energy,
             }
@@ -178,8 +194,11 @@ impl System {
         let mut energy = self
             .potential
             .energy_tail(self.configuration.density(), self.configuration.nparticles);
-        for i in 0..self.configuration.nparticles - 1 {
-            let (u, v) = match self.particle_energy_virial(i, Some(i + 1)) {
+
+        for (i, position_i) in
+            (0..self.configuration.nparticles - 1).zip(self.configuration.positions.iter())
+        {
+            let (u, v) = match self.particle_energy_virial(i, position_i, Some(i + 1)) {
                 (u, v) if u.is_finite() => (u, v),
                 _ => return (energy, virial),
             };
@@ -237,6 +256,9 @@ impl System {
 
     /// Computes and overwrites forces between all particles in the system.
     pub fn compute_forces_inplace(&mut self) {
+        if self.configuration.nparticles == 0 {
+            return;
+        }
         let box_length = self.configuration.box_length;
         self.configuration
             .forces
@@ -319,10 +341,13 @@ pub mod python {
     #[pymethods]
     impl PySystem {
         #[new]
-        fn new(configuration: PyConfiguration, potential: PyPotential) -> Self {
-            Self {
-                _data: Rc::new(RefCell::new(System::new(configuration._data, potential.0))),
-            }
+        fn new(
+            configuration: PyConfiguration,
+            potential: PyPotential,
+        ) -> Result<Self, SargasError> {
+            Ok(Self {
+                _data: Rc::new(RefCell::new(System::new(configuration._data, potential.0)?)),
+            })
         }
         // #[staticmethod]
         // fn from_lattice(

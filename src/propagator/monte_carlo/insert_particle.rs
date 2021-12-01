@@ -1,4 +1,4 @@
-use super::{metropolis, MCMove, MoveProposal};
+use super::MCMove;
 use crate::system::System;
 use crate::vec::Vec3;
 use rand::{distributions::Uniform, Rng};
@@ -48,8 +48,11 @@ impl InsertDeleteParticle {
             self.accepted += 1;
             return;
         }
-        let (energy, virial) =
-            system.particle_energy_virial(system.configuration.nparticles - 1, None);
+        let (energy, virial) = system.particle_energy_virial(
+            system.configuration.nparticles - 1,
+            &system.configuration.positions[system.configuration.nparticles - 1],
+            None,
+        );
 
         let acceptance: f64 = self.rng.gen();
         if acceptance
@@ -72,7 +75,8 @@ impl InsertDeleteParticle {
         let i = self
             .rng
             .sample(Uniform::from(0..system.configuration.nparticles));
-        let (energy, virial) = system.particle_energy_virial(i, None);
+        let position_i = &system.configuration.positions[i];
+        let (energy, virial) = system.particle_energy_virial(i, position_i, None);
 
         let acceptance: f64 = self.rng.gen();
         if acceptance

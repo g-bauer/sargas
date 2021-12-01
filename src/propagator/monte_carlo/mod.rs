@@ -1,8 +1,9 @@
-use super::Propagator;
+use super::{Propagator};
 use std::cell::RefCell;
 use std::rc::Rc;
 pub mod change_volume;
 pub mod displace_particle;
+use crate::error::SargasError;
 use crate::system::System;
 pub mod insert_particle;
 use rand::distributions::WeightedIndex;
@@ -58,11 +59,12 @@ impl MonteCarlo {
 }
 
 impl Propagator for MonteCarlo {
-    fn propagate(&mut self, system: &mut System) {
+    fn propagate(&mut self, system: &mut System) -> Result<(), SargasError> {
         self.moves[self.weights.sample(&mut self.rng)]
             .as_ref()
             .borrow_mut()
-            .apply(system)
+            .apply(system);
+        Ok(())
     }
 
     fn adjust(&mut self, system: &mut System) {

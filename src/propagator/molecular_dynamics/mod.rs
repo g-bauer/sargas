@@ -1,4 +1,5 @@
-use super::Propagator;
+use super::{Propagator};
+use crate::error::SargasError;
 use crate::system::System;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -24,8 +25,9 @@ struct MolecularDynamics {
 }
 
 impl Propagator for MolecularDynamics {
-    fn propagate(&mut self, system: &mut System) {
+    fn propagate(&mut self, system: &mut System) -> Result<(), SargasError> {
         self.integrator.as_ref().borrow_mut().apply(system);
+        Ok(())
     }
 
     fn adjust(&mut self, system: &mut System) {

@@ -4,6 +4,7 @@ use crate::system::System;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{borrow::Borrow, cell::RefCell};
+use crate::error::SargasError;
 
 /// A molecular simulation object.
 pub struct Simulation {
@@ -56,12 +57,14 @@ impl Simulation {
         self.adjustment_frequency = None
     }
 
-    pub fn run(&mut self, steps: usize) {
+    pub fn run(&mut self, steps: usize) -> Result<(), SargasError> {
         let mut s = self.system.borrow_mut();
-        s.recompute_energy_forces();
+        if self.step == 0 || self.step % 100_000 == 0 {
+            s.recompute_energy_forces();
+        }
         for _ in 1..=steps {
             self.step += 1;
-            self.propagator.borrow_mut().propagate(&mut s);
+            self.propagator.borrow_mut().propagate(&mut s)?;
 
             match self.adjustment_frequency {
                 Some(f) if self.step % f == 0 => self.propagator.borrow_mut().adjust(&mut s),
@@ -78,14 +81,18 @@ impl Simulation {
                 });
             }
         }
+        Ok(())
     }
 }
 
 #[cfg(feature = "python")]
 pub mod python {
     use super::*;
+    use crate::configuration::Configuration;
+    use crate::potential::python::PyPotential;
     use crate::propagator::molecular_dynamics::python::PyMolecularDynamics;
     use crate::propagator::monte_carlo::python::*;
+    use crate::propagator::trajectory_reader::TrajectoryReader;
     use crate::sampler::python::PySampler;
     use crate::system::python::PySystem;
     use pyo3::prelude::*;
@@ -93,10 +100,12 @@ pub mod python {
     impl Simulation {
         pub fn run_cancelable(&mut self, py: Python, steps: usize) -> PyResult<()> {
             let mut s = self.system.borrow_mut();
-            s.recompute_energy_forces();
+            if self.step == 0 || self.step % 100_000 == 0 {
+                s.recompute_energy_forces();
+            }
             for _ in 1..=steps {
                 self.step += 1;
-                self.propagator.borrow_mut().propagate(&mut s);
+                self.propagator.borrow_mut().propagate(&mut s)?;
 
                 match self.adjustment_frequency {
                     Some(f) if self.step % f == 0 => self.propagator.borrow_mut().adjust(&mut s),
@@ -167,6 +176,28 @@ pub mod python {
             }
         }
 
+        /// Read an existing trajectory.
+        ///
+        /// Parameters
+        /// ----------
+        /// potential : Potential
+        ///     the pair potential to use
+        /// path : String
+        ///     path (filename) of the trajectory
+        ///
+        /// Returns
+        /// -------
+        /// Simulation : a simulation where each step is a frame of an existing trajectory.
+        #[staticmethod]
+        fn rerun_trajectory(potential: PyPotential, path: String) -> PyResult<Self> {
+            let reader = Rc::new(RefCell::new(TrajectoryReader::new(path)?));
+            let configuration = Configuration::without_particles();
+            let system = Rc::new(RefCell::new(System::new(configuration, potential.0)?));
+            Ok(Self {
+                _data: Simulation::new(system, reader, None).unwrap(),
+            })
+        }
+
         /// Add a sampler to the simulation
         ///
         /// Parameters
@@ -202,17 +233,12 @@ pub mod python {
         fn run(&mut self, py: Python, steps: usize) -> PyResult<()> {
             self._data.run_cancelable(py, steps)
         }
-    }
 
-    // #[pyproto]
-    // impl PyObjectProtocol for PySimulation {
-    //     fn __repr__(&self) -> PyResult<String> {
-    //         Ok(fmt::format(format_args!(
-    //             "Simulation\n==========\nadjust displacement: {}\n\n{}\n\n",
-    //             self._data.adjustment_frequency.is_some(),
-    //             self._data.system.as_ref().borrow().to_string(),
-    //             // self._data.propagator.to_string(),
-    //         )))
-    //     }
-    // }
+        // fn __repr__(&self) -> PyResult<String> {
+        //     Ok(fmt::format(format_args!(
+        //         "Simulation\n==========\ndisplacement acceptance: {}\n\n",
+        //         self._data.propagator.as.to_string(),
+        //     )))
+        // }
+    }
 }

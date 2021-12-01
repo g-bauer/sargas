@@ -1,9 +1,12 @@
 use crate::system::System;
+use crate::vec::Vec3;
+use chemfiles::{Frame, Trajectory, UnitCell};
+use rand::thread_rng;
+use rand_distr::{Distribution, Uniform};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::rc::Rc;
-use chemfiles::{Trajectory, Frame, UnitCell};
-use std::path::{Path, PathBuf};
 
 pub trait Sampler {
     fn name(&self) -> String;
@@ -149,7 +152,8 @@ impl Sampler for PropertiesSampler {
 }
 
 pub struct WidomSampler {
-    data: Vec<Vec<f64>>,
+    boltzmann_factor: Vec<f64>,
+    chemical_potential: Vec<f64>,
     inserted: u32,
     frequency: usize,
     beta: f64,
@@ -161,14 +165,11 @@ impl WidomSampler {
         frequency: usize,
         temperature: f64,
         ninsertions: usize,
-        replicas: Option<usize>,
         capacity: Option<usize>,
     ) -> Self {
-        let data = (0..replicas.unwrap_or(1))
-            .map(|_| Vec::with_capacity(capacity.unwrap_or(100)))
-            .collect();
         Self {
-            data,
+            boltzmann_factor: Vec::with_capacity(capacity.unwrap_or(100)),
+            chemical_potential: Vec::with_capacity(capacity.unwrap_or(100)),
             inserted: 0,
             frequency,
             beta: 1.0 / temperature,
@@ -177,21 +178,53 @@ impl WidomSampler {
     }
 }
 
+/// Inserts a ghost particle into the simulation box and computes the
+/// sum of Boltzmann factors over all insertions.
+///
+/// Returns: sum of exp(-beta deltaU)
+/// where deltaU is the energy of the ghost particle with all particles in the system.
+pub fn particle_insertion(system: &System, ninsertions: usize, beta: f64) -> f64 {
+    let nparticles = system.configuration.nparticles;
+    if nparticles == 0 {
+        return 0.0;
+    }
+    let mut rng = thread_rng();
+    let dist = Uniform::new(0.0, system.configuration.box_length);
+    let mut boltzmann_factor = 0.0;
+    for _ in 0..ninsertions {
+        // position of ghost particle
+        let ri = Vec3::new(
+            dist.sample(&mut rng),
+            dist.sample(&mut rng),
+            dist.sample(&mut rng),
+        );
+        let energy = system.particle_energy(nparticles + 1, &ri, None);
+        boltzmann_factor += (-beta * energy).exp();
+    }
+    boltzmann_factor
+}
+
 impl Sampler for WidomSampler {
     fn name(&self) -> String {
         String::from("widom")
     }
 
     fn sample(&mut self, system: &System) {
-        let (b, n, i) = (self.beta, self.ninsertions, self.inserted);
-        self.data.iter_mut().for_each(|di| {
-            let sum_exp = system.ghost_particle_energy_sum(b, n);
-            if let Some(l) = di.last() {
-                di.push((l * i as f64 + sum_exp) / (i as f64 + n as f64))
+        let sum_boltzmann_factor = particle_insertion(system, self.ninsertions, self.beta);
+        let density = system.density();
+        let nparticles = system.configuration.nparticles;
+        let u_tail = system.potential.energy_tail(density, nparticles) / nparticles as f64;
+        // current_boltzmann_factor_mean is the last value that was recorded for <exp(-beta deltaU)>
+        let new_boltzmann_factor_mean =
+            if let Some(current_boltzmann_factor_mean) = self.boltzmann_factor.last() {
+                (current_boltzmann_factor_mean * self.inserted as f64 + sum_boltzmann_factor)
+                    / (self.inserted as f64 + self.ninsertions as f64)
             } else {
-                di.push(sum_exp / n as f64)
-            }
-        });
+                sum_boltzmann_factor / self.ninsertions as f64
+            };
+        self.chemical_potential
+            .push(density.ln() + 2.0 * u_tail - new_boltzmann_factor_mean.ln());
+        self.boltzmann_factor.push(new_boltzmann_factor_mean);
         self.inserted += self.ninsertions as u32;
     }
 
@@ -201,9 +234,14 @@ impl Sampler for WidomSampler {
 
     fn property(&self) -> HashMap<String, Vec<f64>> {
         let mut hm = HashMap::new();
-        self.data.iter().enumerate().for_each(|(i, di)| {
-            hm.insert(format!("mu{}", i), di.iter().map(|di| -di.ln()).collect());
-        });
+        hm.insert(
+            String::from("boltzmann_factor"),
+            self.boltzmann_factor.clone(),
+        );
+        hm.insert(
+            String::from("chemical_potential"),
+            self.chemical_potential.clone(),
+        );
         hm
     }
 }
@@ -211,16 +249,16 @@ impl Sampler for WidomSampler {
 pub struct TrajectoryWriter {
     filename: PathBuf,
     frequency: usize,
-    step: usize
+    step: usize,
 }
 
 impl TrajectoryWriter {
     pub fn new(filename: PathBuf, frequency: usize) -> Result<Self, String> {
-        let trajectory = Trajectory::open_with_format(filename.clone(), 'w', "").unwrap();
+        let _trajectory = Trajectory::open_with_format(filename.clone(), 'w', "").unwrap();
         Ok(Self {
             filename,
             frequency,
-            step: 0,
+            step: 1,
         })
     }
 }
@@ -237,9 +275,26 @@ impl Sampler for TrajectoryWriter {
         frame.set_step(self.step);
         let l = system.configuration.box_length;
         frame.set_cell(&UnitCell::new([l, l, l]));
+        frame.add_velocities();
 
-        for (p, frame_position) in system.configuration.positions.iter().zip(frame.positions_mut()) {
+        for (p, frame_position) in system
+            .configuration
+            .positions
+            .iter()
+            .zip(frame.positions_mut())
+        {
             *frame_position = [p.x, p.y, p.z];
+        }
+
+        match system.configuration.velocities.as_ref() {
+            Some(v) => v
+                .iter()
+                .zip(frame.velocities_mut())
+                .for_each(|(vi, vif)| *vif = [vi.x, vi.y, vi.z]),
+            None => frame
+                .velocities_mut()
+                .iter_mut()
+                .for_each(|v| *v = [0.0; 3]),
         }
 
         trj.write(&frame).unwrap();
@@ -254,7 +309,6 @@ impl Sampler for TrajectoryWriter {
         HashMap::new()
     }
 }
-
 
 #[cfg(feature = "python")]
 pub mod python {
@@ -291,19 +345,46 @@ pub mod python {
             }
         }
 
+        /// Store the positions and possibly velocities in a file.
+        ///
+        /// Parameters
+        /// ----------
+        /// filename : str
+        ///     the file name where the trajectory will be stored.
+        /// frequency : int
+        ///     the frequency with which the trajectory is stored.
+        ///
+        /// Returns
+        /// -------
+        /// Sampler
         #[staticmethod]
+        #[pyo3(text_signature = "(filename, frequency)")]
         fn trajectory(filename: &str, frequency: usize) -> Self {
             Self {
-                _data: Rc::new(RefCell::new(TrajectoryWriter::new(PathBuf::from(filename), frequency).unwrap())),
+                _data: Rc::new(RefCell::new(
+                    TrajectoryWriter::new(PathBuf::from(filename), frequency).unwrap(),
+                )),
             }
         }
 
+        /// Calculate the chemical potential by inserting ghost particles.
+        ///
+        /// Parameters
+        /// ----------
+        /// frequency : int
+        ///     the frequency with which ghost particles are inserted.
+        /// temperature : float
+        ///     the reduced temperature
+        /// ninsertions : int
+        ///     how many ghost particles are inserted.
+        /// capacity : int, optional
+        ///     size of the data storage. Defaults to 100.
         #[staticmethod]
+        #[pyo3(text_signature = "(frequency, temperature, ninsertions, capacity)")]
         fn widom(
             frequency: usize,
             temperature: f64,
             ninsertions: usize,
-            repeat: Option<usize>,
             capacity: Option<usize>,
         ) -> Self {
             Self {
@@ -311,7 +392,6 @@ pub mod python {
                     frequency,
                     temperature,
                     ninsertions,
-                    repeat,
                     capacity,
                 ))),
             }
