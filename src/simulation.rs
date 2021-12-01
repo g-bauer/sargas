@@ -58,7 +58,9 @@ impl Simulation {
 
     pub fn run(&mut self, steps: usize) -> Result<(), PropagatorError> {
         let mut s = self.system.borrow_mut();
-        s.recompute_energy_forces();
+        if self.step == 0 || self.step % 100_000 == 0 {
+            s.recompute_energy_forces();
+        }
         for _ in 1..=steps {
             self.step += 1;
             self.propagator.borrow_mut().propagate(&mut s)?;
@@ -96,12 +98,11 @@ pub mod python {
 
     impl Simulation {
         pub fn run_cancelable(&mut self, py: Python, steps: usize) -> PyResult<()> {
-            println!("In run!");
             let mut s = self.system.borrow_mut();
-            s.recompute_energy_forces();
-            println!("In run!");
-            for step in 1..=steps {
-                println!("{}", step);
+            if self.step == 0 || self.step % 100_000 == 0 {
+                s.recompute_energy_forces();
+            }
+            for _ in 1..=steps {
                 self.step += 1;
                 self.propagator.borrow_mut().propagate(&mut s)?;
 

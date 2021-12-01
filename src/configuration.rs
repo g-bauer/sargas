@@ -22,7 +22,7 @@ impl Configuration {
             nparticles,
             positions,
             velocities,
-            forces: Vec::with_capacity(nparticles),
+            forces: [Vec3::zero()].repeat(nparticles),
             box_length,
             max_nparticles: nparticles,
         }

@@ -24,15 +24,19 @@ impl TrajectoryReader {
 
 impl Propagator for TrajectoryReader {
     fn propagate(&mut self, system: &mut System) -> Result<(), PropagatorError> {
-        println!("In propagator!");
         let mut frame = Frame::new();
-        self.trajectory
-            .read_step(self.current_step, &mut frame)
-            .unwrap();
         self.current_step += 1;
+        if self.current_step > self.nsteps {
+            return Err(PropagatorError::TrajectoryEnd);
+        }
+        self.trajectory.read_step(self.current_step, &mut frame)?;
         let box_length = frame.cell().lengths()[0];
         let positions = frame.positions().iter().map(Vec3::from).collect();
-        let velocities = Some(frame.velocities().iter().map(Vec3::from).collect());
+        let velocities = if frame.has_velocities() {
+            Some(frame.velocities().iter().map(Vec3::from).collect())
+        } else {
+            None
+        };
         let configuration = Configuration::new(positions, velocities, box_length);
         system.configuration = configuration;
         system.recompute_energy_forces();
