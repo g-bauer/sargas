@@ -26,7 +26,7 @@ impl Propagator for TrajectoryReader {
     fn propagate(&mut self, system: &mut System) -> Result<(), PropagatorError> {
         let mut frame = Frame::new();
         self.current_step += 1;
-        if self.current_step > self.nsteps {
+        if self.current_step == self.nsteps {
             return Err(PropagatorError::TrajectoryEnd);
         }
         self.trajectory.read_step(self.current_step, &mut frame)?;
