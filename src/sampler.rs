@@ -191,15 +191,9 @@ pub fn particle_insertion(system: &System, ninsertions: usize, beta: f64) -> f64
     let mut rng = thread_rng();
     let dist = Uniform::new(0.0, system.configuration.box_length);
     let mut boltzmann_factor = 0.0;
+
     for _ in 0..ninsertions {
-        // position of ghost particle
-        let ri = Vec3::new(
-            dist.sample(&mut rng),
-            dist.sample(&mut rng),
-            dist.sample(&mut rng),
-        );
-        let energy = system.particle_energy(nparticles + 1, &ri, None);
-        boltzmann_factor += (-beta * energy).exp();
+        // your modification
     }
     boltzmann_factor
 }

@@ -59,36 +59,14 @@ impl Vec3 {
 
     /// Applies periodic boundary conditions for cubic box to a Vec3 in place.
     #[inline]
-    pub fn apply_pbc(&mut self, box_length: f64) {
-        self.x += if self.x < 0.0 {
-            box_length
-        } else if self.x >= box_length {
-            -box_length
-        } else {
-            0.0
-        };
-        self.y += if self.y < 0.0 {
-            box_length
-        } else if self.y >= box_length {
-            -box_length
-        } else {
-            0.0
-        };
-        self.z += if self.z < 0.0 {
-            box_length
-        } else if self.z >= box_length {
-            -box_length
-        } else {
-            0.0
-        };
-    }
+    pub fn apply_pbc(&mut self, box_length: f64) {}
 
     #[inline]
     pub fn nearest_image(&self, box_length: f64) -> Self {
         let il = 1.0 / box_length;
-        let x = self.x - box_length * (self.x * il).round();
-        let y = self.y - box_length * (self.y * il).round();
-        let z = self.z - box_length * (self.z * il).round();
+        let x = 0.0;
+        let y = 0.0;
+        let z = 0.0;
         Self { x, y, z }
     }
 }
