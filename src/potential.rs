@@ -42,7 +42,7 @@ impl LennardJones {
             s6: sigma.powi(6),
             e4: epsilon * 4.0,
             energy_shift: 0.0,
-            squared_overlap_distance,
+            squared_overlap_distance: squared_overlap_distance,
             tail_correction,
         }
     }
@@ -56,7 +56,7 @@ impl LennardJones {
             epsilon,
             s6: sigma.powi(6),
             e4: epsilon * 4.0,
-            energy_shift: 4.0 * epsilon * ((sigma / rc).powi(12) - (sigma / rc).powi(6)),
+            energy_shift: 0.0,
             squared_overlap_distance: squared_overlap_distance,
             tail_correction,
         }
@@ -75,30 +75,16 @@ impl Potential for LennardJones {
     }
 
     fn virial(&self, r2: f64) -> f64 {
-        let a = self.s6 / (r2 * r2 * r2);
-        self.e4 * 6.0 * (2.0 * a * a - a)
+        0.0
     }
 
     fn energy_virial(&self, r2: f64) -> (f64, f64) {
-        let a = self.s6 / (r2 * r2 * r2);
-        let rep = self.e4 * a * a;
-        let att = -self.e4 * a;
-        (rep + att - self.energy_shift, 6.0 * (2.0 * rep + att))
+        (0.0, 0.0)
     }
 
     fn energy_tail(&self, density: f64, nparticles: usize) -> f64 {
         if self.tail_correction {
-            let s3 = self.sigma.powi(3) / self.rc2.sqrt().powi(3);
-            8.0 / 3.0
-                * nparticles as f64
-                * PI
-                * density
-                * self.epsilon
-                * self.sigma.powi(3)
-                * (1.0 / 3.0 * s3.powi(3) - s3)
-                + 2.0 * PI * nparticles as f64 * density / 3.0
-                    * self.energy_shift
-                    * self.rc2.sqrt().powi(3)
+            0.0
         } else {
             0.0
         }
@@ -106,13 +92,7 @@ impl Potential for LennardJones {
 
     fn pressure_tail(&self, density: f64) -> f64 {
         if self.tail_correction {
-            let s3 = self.sigma.powi(3) / self.rc2.sqrt().powi(3);
-            16.0 / 3.0
-                * PI
-                * density.powi(2)
-                * self.epsilon
-                * self.sigma.powi(3)
-                * (2.0 / 3.0 * s3.powi(3) - s3)
+            0.0
         } else {
             0.0
         }
@@ -260,6 +240,20 @@ pub mod python {
         /// float : energy
         fn energy(&self, r2: f64) -> f64 {
             self.0.energy(r2)
+        }
+
+        /// Pair virial
+        ///
+        /// Parameters
+        /// ----------
+        /// r2 : float
+        ///     squared distance
+        ///
+        /// Returns
+        /// -------
+        /// float : viral
+        fn virial(&self, r2: f64) -> f64 {
+            self.0.virial(r2)
         }
     }
 
