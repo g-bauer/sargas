@@ -20,16 +20,15 @@ impl Integrator for VelocityVerlet {
 
         if let Some(v) = system.configuration.velocities.as_mut() {
             for i in 0..system.configuration.nparticles {
-                v[i] += system.configuration.forces[i] * 0.5 * self.dt;
-                system.configuration.positions[i] += self.dt * v[i];
-                system.configuration.positions[i].apply_pbc(system.configuration.box_length);
+                // v[i] +=
+                // system.configuration.positions[i] +=
             }
         }
-        system.compute_forces_inplace();
+        // compute forces
         if let Some(v) = system.configuration.velocities.as_mut() {
             for i in 0..system.configuration.nparticles {
-                v[i] += system.configuration.forces[i] * 0.5 * self.dt;
-                squared_velocity += v[i].dot(&v[i]);
+                // v[i] += 
+                // squared_velocity += 
             }
         }
         system.kinetic_energy = Some(0.5 * squared_velocity);
