@@ -1,4 +1,5 @@
 use std::fmt;
+use std::iter::Sum;
 use std::ops::{Add, AddAssign, Div, DivAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(Clone, Debug, Copy)]
@@ -279,5 +280,24 @@ impl Index<usize> for Vec3 {
             2 => &self.z,
             _ => panic!("Index out of bounds."),
         }
+    }
+}
+
+// Summation
+impl<'a> Sum<&'a Self> for Vec3 {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = &'a Self>,
+    {
+        iter.fold(Self::zero(), |a, b| a + b)
+    }
+}
+
+impl Sum<Self> for Vec3 {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
+    {
+        iter.fold(Self::zero(), |a, b| a + b)
     }
 }

@@ -6,22 +6,18 @@ use std::fmt;
 pub struct VelocityVerlet {
     /// time step
     dt: f64,
-    /// one half times squared time step
-    dt2_2: f64,
 }
 
 impl VelocityVerlet {
     pub fn new(dt: f64) -> Self {
-        Self {
-            dt,
-            dt2_2: 0.5 * dt * dt,
-        }
+        Self { dt }
     }
 }
 
 impl Integrator for VelocityVerlet {
     fn apply(&mut self, system: &mut System) {
         let mut squared_velocity = 0.0;
+
         if let Some(v) = system.configuration.velocities.as_mut() {
             for i in 0..system.configuration.nparticles {
                 v[i] += system.configuration.forces[i] * 0.5 * self.dt;
@@ -49,19 +45,3 @@ impl fmt::Display for VelocityVerlet {
         )
     }
 }
-
-// #[pyclass(name = "VelocityVerlet", unsendable)]
-// #[derive(Clone)]
-// pub struct PyVelocityVerlet {
-//     pub _data: VelocityVerlet,
-// }
-
-// #[pymethods]
-// impl PyVelocityVerlet {
-//     #[new]
-//     fn new(dt: f64) -> Self {
-//         Self {
-//             _data: VelocityVerlet::new(dt),
-//         }
-//     }
-// }

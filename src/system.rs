@@ -22,7 +22,8 @@ impl System {
         configuration: Configuration,
         potential: Rc<dyn Potential>,
     ) -> Result<Self, SargasError> {
-        if potential.rc2().sqrt() > 0.5 * configuration.box_length && configuration.nparticles != 0 {
+        if potential.rc2().sqrt() > 0.5 * configuration.box_length && configuration.nparticles != 0
+        {
             return Err(SargasError::InvalidCutoff {
                 found: potential.rc2().sqrt(),
                 maximum: 0.5 * configuration.box_length,
@@ -349,51 +350,6 @@ pub mod python {
                 _data: Rc::new(RefCell::new(System::new(configuration._data, potential.0)?)),
             })
         }
-        // #[staticmethod]
-        // fn from_lattice(
-        //     nparticles: usize,
-        //     density: f64,
-        //     temperature: f64,
-        //     rc: f64,
-        //     potential: PyPotential,
-        //     max_nparticles: Option<usize>,
-        // ) -> Self {
-        //     Self {
-        //         _data: Rc::new(RefCell::new(Configuration::with_lattice(
-        //             nparticles,
-        //             density,
-        //             max_nparticles.unwrap_or(nparticles),
-        //         ))),
-        //     }
-        // }
-
-        // #[staticmethod]
-        // fn insert_particles(
-        //     nparticles: usize,
-        //     volume: f64,
-        //     temperature: f64,
-        //     chemical_potential: f64,
-        //     rc: f64,
-        //     potential: PyPotential,
-        //     max_nparticles: Option<usize>,
-        //     insertion_tries: Option<usize>,
-        // ) -> PyResult<Self> {
-        //     Ok(Self {
-        //         _data: Rc::new(RefCell::new(
-        //             Configuration::insert_particles(
-        //                 nparticles,
-        //                 volume,
-        //                 temperature,
-        //                 chemical_potential,
-        //                 rc,
-        //                 potential._data.clone(),
-        //                 max_nparticles.unwrap_or(nparticles),
-        //                 insertion_tries,
-        //             )
-        //             .map_err(|e| PyRuntimeError::new_err(e))?,
-        //         )),
-        //     })
-        // }
 
         #[getter]
         fn get_energy(&self) -> f64 {

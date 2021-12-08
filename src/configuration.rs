@@ -103,7 +103,7 @@ impl Configuration {
         };
         frame.set_cell(&UnitCell::new([box_length, box_length, box_length]));
         let box_length = frame.cell().lengths()[0];
-        let forces: Vec<Vec3> = (0..nparticles).map(|_| Vec3::zero()).collect();
+        let forces = vec![Vec3::zero(); nparticles];
         Ok(Self {
             nparticles,
             positions,
@@ -170,10 +170,14 @@ impl Configuration {
     }
 }
 
+/// Generate velocities according to Maxwell-Boltzmann distribution.
+///
+/// After generating velocities, rescales so that the center of mass velocity
+/// is zero.
 pub fn maxwell_boltzmann(temperature: f64, nparticles: usize) -> Vec<Vec3> {
     let normal = Normal::new(0.0, temperature.sqrt()).unwrap();
     let mut rng = rand::thread_rng();
-    (0..nparticles)
+    let mut velocities: Vec<Vec3> = (0..nparticles)
         .map(|_| {
             Vec3::new(
                 normal.sample(&mut rng),
@@ -181,7 +185,17 @@ pub fn maxwell_boltzmann(temperature: f64, nparticles: usize) -> Vec<Vec3> {
                 normal.sample(&mut rng),
             )
         })
-        .collect()
+        .collect();
+    remove_com_velocity(&mut velocities);
+    velocities
+}
+
+/// Rescales velocities so that the center of mass velocity is zero.
+///
+/// Assumes that all particles in the system have the same mass.
+pub fn remove_com_velocity(velocities: &mut Vec<Vec3>) {
+    let com_velocity: Vec3 = velocities.iter().sum::<Vec3>() / velocities.len() as f64;
+    velocities.iter_mut().for_each(|v| *v -= com_velocity);
 }
 
 impl fmt::Display for Configuration {

@@ -1,10 +1,10 @@
+use crate::error::SargasError;
 use crate::propagator::Propagator;
 use crate::sampler::Sampler;
 use crate::system::System;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{borrow::Borrow, cell::RefCell};
-use crate::error::SargasError;
 
 /// A molecular simulation object.
 pub struct Simulation {
@@ -164,7 +164,19 @@ pub mod python {
             }
         }
 
+        /// A Molecular Dynamics simulation.
+        ///
+        /// Parameters
+        /// ----------
+        /// system : System
+        ///     the system to simulate
+        /// propagator : MolecularDynamics
+        ///     the Molecular Dynamics propagator
+        /// thermostat_frequency : int, optional
+        ///     the frequency with which the thermostat is applied.
+        ///     Defaults to None.
         #[staticmethod]
+        #[pyo3(text_signature = "(system, propagator, thermostat_frequency=None)")]
         fn molecular_dynamics(
             system: PySystem,
             propagator: PyMolecularDynamics,
