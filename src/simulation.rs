@@ -153,6 +153,7 @@ pub mod python {
         /// -------
         /// Simulation : a Monte-Carlo simulation.
         #[staticmethod]
+        #[pyo3(text_signature = "(system, propagator, adjustment_frequency=None)")]
         fn monte_carlo(
             system: PySystem,
             propagator: PyMonteCarlo,
@@ -201,6 +202,7 @@ pub mod python {
         /// -------
         /// Simulation : a simulation where each step is a frame of an existing trajectory.
         #[staticmethod]
+        #[pyo3(text_signature = "(potential, path)")]
         fn rerun_trajectory(potential: PyPotential, path: String) -> PyResult<Self> {
             let reader = Rc::new(RefCell::new(TrajectoryReader::new(path)?));
             let configuration = Configuration::without_particles();
@@ -212,14 +214,26 @@ pub mod python {
 
         /// Add a sampler to the simulation
         ///
+        /// A sampler is an object that listens to system
+        /// changes and frequently computes properties or
+        /// writes output to files.
+        ///
         /// Parameters
         /// ----------
         /// sampler : Sampler
         ///     the sampler that is added to the simulation
+        #[pyo3(text_signature = "($self, sampler)")]
         fn add_sampler(&mut self, sampler: &PySampler) {
             self._data.add_sampler(sampler._data.clone())
         }
 
+        /// Remove a sampler from the simulation
+        ///
+        /// Parameters
+        /// ----------
+        /// sampler : Sampler
+        ///     the sampler that is removed from the simulation
+        #[pyo3(text_signature = "($self, sampler)")]
         fn remove_sampler(&mut self, sampler: &PySampler) {
             self._data.remove_sampler(sampler._data.clone())
         }
@@ -229,6 +243,10 @@ pub mod python {
         /// For Monte-Carlo simulations, this option deactivates
         /// updates for the adjustment of displacement or volume
         /// change amplitudes.
+        ///
+        /// For Molecular Dynamics simulations, this option
+        /// deactivates the thermostat.
+        #[pyo3(text_signature = "($self)")]
         fn deactivate_propagator_updates(&mut self) {
             self._data.deactivate_propagator_updates()
         }
@@ -242,6 +260,7 @@ pub mod python {
         /// ----------
         /// steps : int
         ///     the number of steps the simulation is propagated
+        #[pyo3(text_signature = "($self, steps)")]
         fn run(&mut self, py: Python, steps: usize) -> PyResult<()> {
             self._data.run_cancelable(py, steps)
         }

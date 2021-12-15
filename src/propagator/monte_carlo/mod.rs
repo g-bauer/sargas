@@ -1,4 +1,4 @@
-use super::{Propagator};
+use super::Propagator;
 use std::cell::RefCell;
 use std::rc::Rc;
 pub mod change_volume;
@@ -105,6 +105,7 @@ pub mod python {
     /// MonteCarlo : Metropolis Monte-Carlo propagator.
     #[pyclass(name = "MonteCarlo", unsendable)]
     #[derive(Clone)]
+    #[pyo3(text_signature = "(moves, weights, temperature)")]
     pub struct PyMonteCarlo {
         pub _data: Rc<RefCell<MonteCarlo>>,
     }
@@ -143,6 +144,7 @@ pub mod python {
         /// -------
         /// McMove : the Monte-Carlo move to displace a particle.
         #[staticmethod]
+        #[pyo3(text_signature = "(maximum_displacement, target_acceptance, temperature)")]
         fn displace_particle(
             maximum_displacement: f64,
             target_acceptance: f64,
@@ -154,7 +156,25 @@ pub mod python {
             }
         }
 
+        /// Randomly change the size of the cubic simulation box
+        ///
+        /// Parameters
+        /// ----------
+        /// maximum_displacement : float
+        ///     the maximum distance a particle is moved
+        /// target_acceptance : float
+        ///     probability with which move should be accepted.
+        ///     Must be between 0 and 1.
+        /// pressure : float
+        ///     reduced pressure
+        /// temperature : float
+        ///     reduced temperature
+        ///
+        /// Returns
+        /// -------
+        /// McMove : the Monte-Carlo move to change the volume.
         #[staticmethod]
+        #[pyo3(text_signature = "(maximum_displacement, target_acceptance, pressure, temperature)")]
         fn change_volume(
             maximum_displacement: f64,
             target_acceptance: f64,

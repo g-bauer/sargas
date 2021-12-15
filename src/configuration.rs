@@ -262,11 +262,19 @@ pub mod python {
         /// max_nparticles : int, optional
         ///     maximum number of particles.
         ///     Defaults to nparticles if not provided.
+        /// initial_temperature : float, optional
+        ///     the initial temperature is used to generate
+        ///     random velocities according to Maxwell-Boltzmann
+        ///     distribution. Defaults to None which means that
+        ///     the system has no velocities.
         ///
         /// Returns
         /// -------
         /// Configuration
         #[staticmethod]
+        #[pyo3(
+            text_signature = "(nparticles, density, max_nparticles=None, initial_temperature=None)"
+        )]
         fn lattice(
             nparticles: usize,
             density: f64,

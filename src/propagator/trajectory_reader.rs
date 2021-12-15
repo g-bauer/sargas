@@ -1,4 +1,4 @@
-use super::{Propagator};
+use super::Propagator;
 use crate::error::SargasError;
 use crate::system::System;
 use crate::{configuration::Configuration, vec::Vec3};
@@ -54,29 +54,19 @@ pub mod python {
     use std::cell::RefCell;
     use std::rc::Rc;
 
-    /// Metropolis Monte-Carlo propagator.
-    ///
-    /// Each step, picks a move according to its weight.
-    /// A move is accepted according to the Metropolis acceptance criterion.
+    /// Reads frames of a trajectory instead of propagating the system.
     ///
     /// Parameters
     /// ----------
-    /// moves : List[MCMove]
-    ///     the moves used to change the system
-    /// weights : List[int]
-    ///     the weights for each move.
-    ///     Weights are automatically normalized.
-    ///     E.g. consider "move 1" and "move 2" with weights=[1, 3].
-    ///     The probability of picking "move 1" is
-    ///     0.25 while the probability of "move 2" is 0.75.
-    /// temperature : float
-    ///     reduced temperature
+    /// path : string
+    ///     path to trajectory
     ///
     /// Returns
     /// -------
     /// TrajectoryReader
     #[pyclass(name = "TrajectoryReader", unsendable)]
     #[derive(Clone)]
+    #[pyo3(text_signature = "(path)")]
     pub struct PyTrajectoryReader {
         pub _data: Rc<RefCell<TrajectoryReader>>,
     }

@@ -89,6 +89,7 @@ pub struct PropertiesSampler {
     potential_energy: Vec<f64>,
     kinetic_energy: Vec<f64>,
     virial: Vec<f64>,
+    temperature: Vec<f64>,
     frequency: usize,
 }
 
@@ -99,6 +100,7 @@ impl PropertiesSampler {
             potential_energy: Vec::with_capacity(capacity.unwrap_or(100)),
             kinetic_energy: Vec::with_capacity(capacity.unwrap_or(100)),
             virial: Vec::with_capacity(capacity.unwrap_or(100)),
+            temperature: Vec::with_capacity(capacity.unwrap_or(100)),
             frequency,
         }
     }
@@ -119,7 +121,9 @@ impl Sampler for PropertiesSampler {
         self.pressure.push(pressure);
         self.potential_energy.push(u);
         if let Some(ke) = system.configuration.kinetic_energy_from_velocities() {
-            self.kinetic_energy.push(ke)
+            self.kinetic_energy.push(ke);
+            self.temperature
+                .push(ke * 2.0 / 3.0 / system.configuration.nparticles as f64)
         }
         self.virial.push(v);
     }
@@ -146,6 +150,7 @@ impl Sampler for PropertiesSampler {
                     .map(|(p, k)| p + k)
                     .collect(),
             );
+            hm.insert(String::from("temperature"), self.temperature.clone());
         }
         hm
     }
@@ -322,23 +327,22 @@ pub mod python {
 
     #[pymethods]
     impl PySampler {
+        /// Sample properties of the system
+        ///
+        /// Parameters
+        /// ----------
+        /// frequency : int
+        ///     the frequency with which properties are sampled.
+        /// capacity : int, optional
+        ///     allocates arrays for storage. If number of samples
+        ///     exceed capacity, the work arrays are reallocated.
+        ///     Defaults to None.
+        ///
+        /// Returns
+        /// -------
+        /// Sampler
         #[staticmethod]
-        fn energy(frequency: usize, capacity: Option<usize>) -> Self {
-            Self {
-                _data: Rc::new(RefCell::new(PotentialEnergySampler::new(
-                    frequency, capacity,
-                ))),
-            }
-        }
-
-        #[staticmethod]
-        fn pressure(frequency: usize, capacity: Option<usize>) -> Self {
-            Self {
-                _data: Rc::new(RefCell::new(PressureSampler::new(frequency, capacity))),
-            }
-        }
-
-        #[staticmethod]
+        #[pyo3(text_signature = "(frequency, capacity=None)")]
         fn properties(frequency: usize, capacity: Option<usize>) -> Self {
             Self {
                 _data: Rc::new(RefCell::new(PropertiesSampler::new(frequency, capacity))),
@@ -380,7 +384,7 @@ pub mod python {
         /// capacity : int, optional
         ///     size of the data storage. Defaults to 100.
         #[staticmethod]
-        #[pyo3(text_signature = "(frequency, temperature, ninsertions, capacity)")]
+        #[pyo3(text_signature = "(frequency, temperature, ninsertions, capacity=None)")]
         fn widom(
             frequency: usize,
             temperature: f64,

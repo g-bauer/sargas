@@ -335,6 +335,7 @@ pub mod python {
     /// System : the system.
     #[pyclass(name = "System", unsendable)]
     #[derive(Clone)]
+    #[pyo3(text_signature = "(configuration, potential)")]
     pub struct PySystem {
         pub _data: Rc<RefCell<System>>,
     }
@@ -361,15 +362,34 @@ pub mod python {
             self._data.as_ref().borrow().virial
         }
 
+        /// Compute the current system energy.
+        ///
+        /// Returns
+        /// -------
+        /// float : energy of the system in reduced units
+        #[pyo3(text_signature = "($self)")]
         fn compute_energy(&self) -> f64 {
             self._data.as_ref().borrow().energy()
         }
 
+        /// Compute the current system energy and virial.
+        ///
+        /// Returns
+        /// -------
+        /// (float, float) : energy and virial of the system
+        #[pyo3(text_signature = "($self)")]
         fn compute_energy_virial(&self) -> (f64, f64) {
             self._data.as_ref().borrow().energy_virial()
         }
 
-        /// Compute kinetic energy from velocities.
+        /// Compute the current kinetic energy of the system
+        ///
+        /// The kinetic energy is computed from the velocities.
+        ///
+        /// Returns
+        /// -------
+        /// float: kinetic energy of the system
+        #[pyo3(text_signature = "($self)")]
         pub fn kinetic_energy_from_velocities(&self) -> Option<f64> {
             self._data
                 .as_ref()
@@ -378,7 +398,14 @@ pub mod python {
                 .kinetic_energy_from_velocities()
         }
 
-        /// Compute temperature from kinetic energy.
+        /// Compute the current (kinetic) temperature of the system
+        ///
+        /// The temperature is computed from the kinetic energy of the system.
+        ///
+        /// Returns
+        /// -------
+        /// float: temperature of the system
+        #[pyo3(text_signature = "($self)")]
         pub fn temperature(&self) -> Option<f64> {
             self._data
                 .as_ref()
@@ -436,6 +463,12 @@ pub mod python {
                 .into_pyarray(py)
         }
 
+        /// Compute the current forces acting on the particles of the system
+        ///
+        /// Returns
+        /// -------
+        /// numpy.ndarray[float]: forces
+        #[pyo3(text_signature = "($self)")]
         fn compute_forces<'py>(&self, py: Python<'py>) -> &'py PyArray2<f64> {
             let f = self._data.as_ref().borrow().compute_forces();
             Array2::from_shape_fn(

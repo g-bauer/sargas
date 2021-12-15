@@ -215,6 +215,7 @@ pub mod python {
         /// -------
         /// Potential
         #[staticmethod]
+        #[pyo3(text_signature = "(sigma, epsilon, rc, tail_correction, shift_at=None)")]
         fn lennard_jones(
             sigma: f64,
             epsilon: f64,
@@ -258,6 +259,7 @@ pub mod python {
         /// Returns
         /// -------
         /// float : energy
+        #[pyo3(text_signature = "($self, r2)")]
         fn energy(&self, r2: f64) -> f64 {
             self.0.energy(r2)
         }
