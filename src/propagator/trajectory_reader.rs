@@ -43,7 +43,7 @@ impl Propagator for TrajectoryReader {
         let box_length = frame.cell().lengths()[0];
         let positions = frame.positions().iter().map(Vec3::from).collect();
         let velocities = if let Some(velocities) = frame.velocities() {
-            Some(velocities.into_iter().map(Vec3::from).collect())
+            Some(velocities.iter().map(Vec3::from).collect())
         } else {
             None
         };

@@ -107,7 +107,7 @@ impl Simulation {
 pub mod python {
     use super::*;
     use crate::configuration::Configuration;
-    use crate::potential::python::PyPotential;
+    use crate::lennard_jones::python::PyLennardJones;
     use crate::propagator::molecular_dynamics::python::PyMolecularDynamics;
     use crate::propagator::monte_carlo::python::*;
     use crate::propagator::trajectory_reader::TrajectoryReader;
@@ -221,7 +221,7 @@ pub mod python {
         /// Simulation : a simulation where each step is a frame of an existing trajectory.
         #[staticmethod]
         #[pyo3(text_signature = "(potential, path)")]
-        fn rerun_trajectory(potential: PyPotential, path: String) -> PyResult<Self> {
+        fn rerun_trajectory(potential: PyLennardJones, path: String) -> PyResult<Self> {
             let reader = Rc::new(RefCell::new(TrajectoryReader::new(path)?));
             let configuration = Configuration::without_particles();
             let system = Rc::new(RefCell::new(System::new(configuration, potential.0)?));
