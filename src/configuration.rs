@@ -241,7 +241,6 @@ mod tests {
 pub mod python {
     use super::*;
     use pyo3::prelude::*;
-    use pyo3::PyObjectProtocol;
 
     #[pyclass(name = "Configuration", unsendable)]
     #[derive(Clone)]
@@ -290,10 +289,7 @@ pub mod python {
                 ),
             }
         }
-    }
 
-    #[pyproto]
-    impl PyObjectProtocol for PyConfiguration {
         fn __repr__(&self) -> PyResult<String> {
             Ok(fmt::format(format_args!("{}\n", self._data.to_string())))
         }
