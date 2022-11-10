@@ -294,10 +294,11 @@ impl Sampler for TrajectoryWriter {
         match system.configuration.velocities.as_ref() {
             Some(v) => v
                 .iter()
-                .zip(frame.velocities_mut())
+                .zip(frame.velocities_mut().expect("missing velocities"))
                 .for_each(|(vi, vif)| *vif = [vi.x, vi.y, vi.z]),
             None => frame
                 .velocities_mut()
+                .expect("missing velocities")
                 .iter_mut()
                 .for_each(|v| *v = [0.0; 3]),
         }

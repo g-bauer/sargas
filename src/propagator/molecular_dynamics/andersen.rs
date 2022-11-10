@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::Thermostat;
 use crate::system::System;
 use crate::vec::Vec3;
@@ -7,6 +9,7 @@ use rand_distr::{Distribution, Normal};
 pub struct Andersen {
     timestep: f64,
     collision_frequency: f64,
+    target_temperature: f64,
     distribution: Normal<f64>,
 }
 
@@ -15,8 +18,18 @@ impl Andersen {
         Self {
             timestep,
             collision_frequency,
+            target_temperature,
             distribution: Normal::new(0.0, target_temperature.sqrt()).unwrap(),
         }
+    }
+}
+
+impl Display for Andersen {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Andersen thermostat\n")?;
+        write!(f, "  target temperature:  {}\n", self.target_temperature)?;
+        write!(f, "  time step:           {}\n", self.timestep)?;
+        write!(f, "  collision frequency: {}\n", self.collision_frequency)
     }
 }
 
@@ -33,6 +46,7 @@ impl Thermostat for Andersen {
                     )
                 }
             }
+            system.kinetic_energy = system.configuration.kinetic_energy_from_velocities();
         } else {
             return;
         }

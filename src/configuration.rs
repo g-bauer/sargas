@@ -96,8 +96,8 @@ impl Configuration {
         trajectory.read_step(0, &mut frame).unwrap();
         let nparticles = frame.size();
         let positions = frame.positions().into_iter().map(Vec3::from).collect();
-        let velocities = if frame.has_velocities() {
-            Some(frame.velocities().into_iter().map(Vec3::from).collect())
+        let velocities = if let Some(velocities) = frame.velocities() {
+            Some(velocities.into_iter().map(Vec3::from).collect())
         } else {
             None
         };

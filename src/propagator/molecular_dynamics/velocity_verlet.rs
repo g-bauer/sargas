@@ -38,10 +38,6 @@ impl Integrator for VelocityVerlet {
 
 impl fmt::Display for VelocityVerlet {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Velocity Verlet\n=====================\ntimestep: {}",
-            self.dt
-        )
+        write!(f, "Velocity Verlet\n  time step: {}", self.dt)
     }
 }

@@ -127,7 +127,6 @@ impl Potential for LennardJones {
 #[derive(Debug)]
 pub struct HardSphere {
     rc2: f64,
-    sigma: f64,
     sigma2: f64,
 }
 
@@ -135,7 +134,6 @@ impl HardSphere {
     pub fn new(sigma: f64, rc: f64) -> Self {
         Self {
             rc2: rc.powi(2),
-            sigma,
             sigma2: sigma.powi(2),
         }
     }

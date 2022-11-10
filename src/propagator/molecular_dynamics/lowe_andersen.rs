@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::Thermostat;
 use crate::system::System;
 use rand::prelude::*;
@@ -6,6 +8,7 @@ use rand_distr::{Distribution, Normal};
 pub struct LoweAndersen {
     timestep: f64,
     collision_frequency: f64,
+    target_temperature: f64,
     rt2: f64,
     distribution: Normal<f64>,
 }
@@ -20,9 +23,19 @@ impl LoweAndersen {
         Self {
             timestep,
             collision_frequency,
+            target_temperature,
             rt2: interaction_radius.powi(2),
             distribution: Normal::new(0.0, (2.0 * target_temperature).sqrt()).unwrap(),
         }
+    }
+}
+
+impl Display for LoweAndersen {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Lowe-Andersen thermostat\n")?;
+        write!(f, "  target temperature:  {}\n", self.target_temperature)?;
+        write!(f, "  time step:           {}\n", self.timestep)?;
+        write!(f, "  collision frequency: {}\n", self.collision_frequency)
     }
 }
 

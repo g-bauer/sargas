@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use super::Thermostat;
 use crate::system::System;
 
@@ -14,6 +16,15 @@ impl Berendsen {
             timestep,
             tau,
         }
+    }
+}
+
+impl Display for Berendsen {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Berendsen thermostat\n")?;
+        write!(f, "  target temperature: {}\n", self.target_temperature)?;
+        write!(f, "  time step:          {}\n", self.timestep)?;
+        write!(f, "  tau:                {}\n", self.tau)
     }
 }
 

@@ -1,5 +1,6 @@
 use super::Propagator;
 use std::cell::RefCell;
+use std::fmt::Display;
 use std::rc::Rc;
 pub mod change_volume;
 pub mod displace_particle;
@@ -33,7 +34,7 @@ pub fn metropolis<R: Rng + ?Sized>(boltzmann_factor: f64, rng: &mut R) -> MovePr
     }
 }
 
-pub trait MCMove {
+pub trait MCMove: Display {
     fn initialize(&mut self, system: &System);
     fn apply(&mut self, system: &mut System);
     fn adjust(&mut self, system: &System);
@@ -55,6 +56,20 @@ impl MonteCarlo {
             rng: ThreadRng::default(),
             weights: WeightedIndex::new(weights).unwrap(),
         }
+    }
+}
+
+impl Display for MonteCarlo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Monte Carlo\n===========\n")?;
+        for mc_move in self.moves.iter() {
+            write!(
+                f,
+                "\n{}\n",
+                mc_move.try_borrow().expect("Already borrowed.")
+            )?;
+        }
+        Ok(())
     }
 }
 
