@@ -33,3 +33,25 @@ impl Thermostat for VelocityRescaling {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use approx::assert_relative_eq;
+
+    use super::*;
+    use crate::utils::test_system;
+
+    #[test]
+    fn andersen() {
+        let mut system = test_system();
+        let thermostat = VelocityRescaling::new(0.8);
+        thermostat.apply(&mut system);
+        assert_relative_eq!(
+            system.kinetic_energy.unwrap(),
+            system
+                .configuration
+                .kinetic_energy_from_velocities()
+                .unwrap()
+        )
+    }
+}

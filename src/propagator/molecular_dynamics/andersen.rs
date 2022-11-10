@@ -37,6 +37,7 @@ impl Thermostat for Andersen {
     fn apply(&self, system: &mut System) {
         let mut rng = rand::thread_rng();
         if let Some(v) = system.configuration.velocities.as_mut() {
+            let mut squared_velocity = 0.0;
             for i in 0..system.configuration.nparticles {
                 if rng.gen::<f64>() < self.collision_frequency * self.timestep {
                     v[i] = Vec3::new(
@@ -45,10 +46,33 @@ impl Thermostat for Andersen {
                         self.distribution.sample(&mut rng),
                     )
                 }
+                squared_velocity += v[i].dot(&v[i]);
             }
-            system.kinetic_energy = system.configuration.kinetic_energy_from_velocities();
+            system.kinetic_energy = Some(0.5 * squared_velocity);
         } else {
             return;
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use approx::assert_relative_eq;
+
+    use super::*;
+    use crate::utils::test_system;
+
+    #[test]
+    fn andersen() {
+        let mut system = test_system();
+        let thermostat = Andersen::new(0.8, 0.1, 0.1);
+        thermostat.apply(&mut system);
+        assert_relative_eq!(
+            system.kinetic_energy.unwrap(),
+            system
+                .configuration
+                .kinetic_energy_from_velocities()
+                .unwrap()
+        )
     }
 }

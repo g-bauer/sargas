@@ -6,6 +6,7 @@ pub mod simulation;
 pub mod system;
 pub mod vec;
 pub mod error;
+pub mod utils;
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 

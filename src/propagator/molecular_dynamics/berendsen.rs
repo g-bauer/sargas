@@ -36,11 +36,37 @@ impl Thermostat for Berendsen {
             let scaling_factor = (1.0
                 + self.timestep / self.tau * (self.target_temperature / current_temperature - 1.0))
                 .sqrt();
-            for i in 0..system.configuration.nparticles {
-                v[i] *= scaling_factor;
-            }
+            let mut squared_velocity = 0.0;
+            v.iter_mut().for_each(|vi| {
+                *vi *= scaling_factor;
+                squared_velocity += vi.dot(&vi);
+            });
+            // update kinetic energy
+            system.kinetic_energy = Some(0.5 * squared_velocity);
         } else {
             return;
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use approx::assert_relative_eq;
+
+    use super::*;
+    use crate::utils::test_system;
+
+    #[test]
+    fn andersen() {
+        let mut system = test_system();
+        let thermostat = Berendsen::new(0.8, 0.1, 0.1);
+        thermostat.apply(&mut system);
+        assert_relative_eq!(
+            system.kinetic_energy.unwrap(),
+            system
+                .configuration
+                .kinetic_energy_from_velocities()
+                .unwrap()
+        )
     }
 }
