@@ -3,6 +3,7 @@ use crate::propagator::Propagator;
 use crate::sampler::Sampler;
 use crate::system::System;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::rc::Rc;
 use std::{borrow::Borrow, cell::RefCell};
 
@@ -18,6 +19,23 @@ pub struct Simulation {
     pub adjustment_frequency: Option<usize>,
     ///
     pub samplers: HashMap<String, Rc<RefCell<dyn Sampler>>>,
+}
+
+impl Display for Simulation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Simulation\n==========\n")?;
+        write!(f, "  current step: {}\n", self.step)?;
+        write!(
+            f,
+            "\n{}\n",
+            self.system.try_borrow().expect("Already borrowed.")
+        )?;
+        write!(
+            f,
+            "{}\n",
+            self.propagator.try_borrow().expect("Already borrowed.")
+        )
+    }
 }
 
 impl Simulation {
@@ -265,11 +283,8 @@ pub mod python {
             self._data.run_cancelable(py, steps)
         }
 
-        // fn __repr__(&self) -> PyResult<String> {
-        //     Ok(fmt::format(format_args!(
-        //         "Simulation\n==========\ndisplacement acceptance: {}\n\n",
-        //         self._data.propagator.as.to_string(),
-        //     )))
-        // }
+        fn __repr__(&self) -> PyResult<String> {
+            Ok(self._data.to_string())
+        }
     }
 }

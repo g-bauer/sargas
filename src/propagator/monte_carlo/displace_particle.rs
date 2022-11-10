@@ -113,10 +113,15 @@ impl fmt::Display for DisplaceParticle {
         } else {
             self.accepted_total as f64 / self.attempted_total as f64 * 100.0
         };
+        write!(f, "Particle Displacement Move\n")?;
+        write!(f, "  attempts:             {}\n", self.attempted_total)?;
+        write!(f, "  accepted:             {}\n", self.accepted_total)?;
+        write!(f, "  acceptance:           {:.2}\n", acceptance)?;
+        write!(f, "  target acceptance:    {:.2}\n", self.target_acceptance)?;
         write!(
             f,
-            "Particle Displacement Move\n==========================\nattempts: {}\naccepted: {}\naccepted: {:.2} %\ncurrent displacement: {:.3}",
-            self.attempted_total, self.accepted_total, acceptance, self.maximum_displacement
+            "  current displacement: {:.3}\n",
+            self.maximum_displacement
         )
     }
 }

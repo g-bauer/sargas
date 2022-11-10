@@ -3,6 +3,7 @@ use crate::error::SargasError;
 use crate::system::System;
 use crate::{configuration::Configuration, vec::Vec3};
 use chemfiles::{Frame, Trajectory};
+use std::fmt::Display;
 use std::path::Path;
 
 pub struct TrajectoryReader {
@@ -23,6 +24,14 @@ impl TrajectoryReader {
     }
 }
 
+impl Display for TrajectoryReader {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Trajectory Reader\n===============\n")?;
+        write!(f, "  trajectory:      {}\n", self.trajectory.path())?;
+        write!(f, "  number of steps: {}\n", self.nsteps)
+    }
+}
+
 impl Propagator for TrajectoryReader {
     fn propagate(&mut self, system: &mut System) -> Result<(), SargasError> {
         let mut frame = Frame::new();
@@ -33,8 +42,8 @@ impl Propagator for TrajectoryReader {
         self.trajectory.read_step(self.current_step, &mut frame)?;
         let box_length = frame.cell().lengths()[0];
         let positions = frame.positions().iter().map(Vec3::from).collect();
-        let velocities = if frame.has_velocities() {
-            Some(frame.velocities().iter().map(Vec3::from).collect())
+        let velocities = if let Some(velocities) = frame.velocities() {
+            Some(velocities.into_iter().map(Vec3::from).collect())
         } else {
             None
         };

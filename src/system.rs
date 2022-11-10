@@ -7,6 +7,7 @@ use ndarray::{Array1, Array2};
 use rand::{distributions::Uniform, thread_rng};
 use rand_distr::Distribution;
 use std::cell::RefCell;
+use std::fmt::Display;
 use std::rc::Rc;
 
 pub struct System {
@@ -15,6 +16,32 @@ pub struct System {
     pub potential_energy: f64,
     pub virial: f64,
     pub kinetic_energy: Option<f64>,
+}
+
+impl Display for System {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "System Information\n==================\n")?;
+        write!(
+            f,
+            "  number of particles: {}\n",
+            self.configuration.nparticles
+        )?;
+        write!(
+            f,
+            "  box length:          {}\n",
+            self.configuration.box_length
+        )?;
+        write!(
+            f,
+            "  volume:              {}\n",
+            self.configuration.volume()
+        )?;
+        write!(
+            f,
+            "  density:             {}\n",
+            self.configuration.density()
+        )
+    }
 }
 
 impl System {
@@ -214,6 +241,7 @@ impl System {
     pub fn reset(&mut self) {
         self.potential_energy = 0.0;
         self.virial = 0.0;
+        self.kinetic_energy = Some(0.0);
         self.configuration
             .forces
             .iter_mut()
@@ -223,7 +251,7 @@ impl System {
         if let Some(t) = self.configuration.temperature_from_velocities() {
             self.configuration.velocities =
                 Some(maxwell_boltzmann(t, self.configuration.nparticles));
-            self.kinetic_energy = Some(3.0 / 2.0 * t);
+            self.kinetic_energy = Some(3.0 / 2.0 * self.configuration.nparticles as f64 * t);
         } else {
             self.configuration.velocities = None;
             self.kinetic_energy = None;
@@ -241,6 +269,7 @@ impl System {
     pub fn recompute_energy_forces(&mut self) {
         self.potential_energy = 0.0;
         self.virial = 0.0;
+        self.kinetic_energy = Some(0.0);
         if self.configuration.nparticles == 0 {
             return;
         }
@@ -249,7 +278,7 @@ impl System {
         self.virial = v;
         self.compute_forces_inplace();
         if let Some(t) = self.configuration.temperature_from_velocities() {
-            self.kinetic_energy = Some(3.0 / 2.0 * t);
+            self.kinetic_energy = Some(3.0 / 2.0 * self.configuration.nparticles as f64 * t);
         } else {
             self.kinetic_energy = None;
         }
@@ -443,14 +472,13 @@ pub mod python {
         }
 
         #[getter]
-        fn get_velocities<'py>(&self, py: Python<'py>) -> &'py PyArray2<f64> {
-            self._data
+        fn get_velocities<'py>(&self, py: Python<'py>) -> Option<&'py PyArray2<f64>> {
+            Some(self._data
                 .as_ref()
                 .borrow()
                 .configuration
-                .velocities()
-                .unwrap()
-                .into_pyarray(py)
+                .velocities()?
+                .into_pyarray(py))
         }
 
         #[getter]
@@ -478,21 +506,14 @@ pub mod python {
             .into_pyarray(py)
         }
 
-        #[getter]
-        fn get_configuration(&self) -> PyConfiguration {
+        fn configuration(&self) -> PyConfiguration {
             PyConfiguration {
                 _data: self._data.as_ref().borrow().configuration.clone(),
             }
         }
-    }
 
-    // #[pyproto]
-    // impl PyObjectProtocol for PySystem {
-    //     fn __repr__(&self) -> PyResult<String> {
-    //         Ok(fmt::format(format_args!(
-    //             "{}\n",
-    //             self._data.to_string()
-    //         )))
-    //     }
-    // }
+        fn __repr__(&self) -> PyResult<String> {
+            Ok(self._data.borrow().to_string())
+        }
+    }
 }

@@ -12,6 +12,8 @@ pub struct Langevin {
     temperature: f64,
     /// damping constant (gamma)
     damping_constant: f64,
+    /// distribution
+    distribution: Normal<f64>,
 }
 
 impl Langevin {
@@ -20,6 +22,7 @@ impl Langevin {
             dt,
             temperature,
             damping_constant,
+            distribution: Normal::new(0.0, temperature.sqrt()).unwrap(),
         }
     }
 }
@@ -27,7 +30,6 @@ impl Langevin {
 impl Integrator for Langevin {
     fn apply(&mut self, system: &mut System) {
         let mut squared_velocity = 0.0;
-        let normal = Normal::new(0.0, self.temperature.sqrt()).unwrap();
         let mut rng = rand::thread_rng();
         let damping = self.damping_constant * self.dt;
 
@@ -40,9 +42,9 @@ impl Integrator for Langevin {
                 system.configuration.positions[i].apply_pbc(system.configuration.box_length);
                 // middle step: friction and random force
                 let g = Vec3::new(
-                    normal.sample(&mut rng),
-                    normal.sample(&mut rng),
-                    normal.sample(&mut rng),
+                    self.distribution.sample(&mut rng),
+                    self.distribution.sample(&mut rng),
+                    self.distribution.sample(&mut rng),
                 );
                 v[i] = (-damping).exp() * v[i] + g * (1.0 - (-2.0 * damping).exp()).sqrt();
             }
@@ -60,10 +62,32 @@ impl Integrator for Langevin {
 
 impl fmt::Display for Langevin {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Velocity Verlet\n=====================\ntimestep: {}",
-            self.dt
+        write!(f, "Langevin\n=====================\n")?;
+        write!(f, "  time step:        {}", self.dt)?;
+        write!(f, "  temperature:      {}", self.temperature)?;
+        write!(f, "  damping constant: {}", self.damping_constant)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use approx::assert_relative_eq;
+
+    use super::*;
+    use crate::utils::test_system;
+
+    #[test]
+    fn langevin() {
+        let mut system = test_system();
+        let mut integrator = Langevin::new(0.1, 0.8, 0.1);
+        integrator.apply(&mut system);
+        assert_relative_eq!(
+            system.kinetic_energy.unwrap(),
+            system
+                .configuration
+                .kinetic_energy_from_velocities()
+                .unwrap(),
+            epsilon = 1e-12
         )
     }
 }

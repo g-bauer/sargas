@@ -2,6 +2,7 @@ use super::Propagator;
 use crate::error::SargasError;
 use crate::system::System;
 use std::cell::RefCell;
+use std::fmt::Display;
 use std::rc::Rc;
 pub mod andersen;
 pub mod berendsen;
@@ -16,11 +17,11 @@ use lowe_andersen::LoweAndersen;
 use velocity_rescaling::VelocityRescaling;
 use velocity_verlet::VelocityVerlet;
 
-pub trait Integrator {
+pub trait Integrator: Display {
     fn apply(&mut self, system: &mut System);
 }
 
-pub trait Thermostat {
+pub trait Thermostat: Display {
     fn apply(&self, system: &mut System);
     // fn frequency(&self) -> usize;
 }
@@ -28,6 +29,25 @@ pub trait Thermostat {
 struct MolecularDynamics {
     pub integrator: Rc<RefCell<dyn Integrator>>,
     pub thermostat: Option<Rc<RefCell<dyn Thermostat>>>,
+}
+
+impl Display for MolecularDynamics {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Molecular Dynamics\n==================\n")?;
+        write!(
+            f,
+            "{}\n",
+            self.integrator.try_borrow().expect("Already borrowed.")
+        )?;
+        if let Some(thermostat) = &self.thermostat {
+            write!(
+                f,
+                "\n{}\n",
+                thermostat.try_borrow().expect("Already borrowed.")
+            )?;
+        }
+        Ok(())
+    }
 }
 
 impl Propagator for MolecularDynamics {
