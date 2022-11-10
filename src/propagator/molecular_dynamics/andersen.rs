@@ -72,7 +72,8 @@ mod test {
             system
                 .configuration
                 .kinetic_energy_from_velocities()
-                .unwrap()
+                .unwrap(),
+            epsilon = 1e-12
         )
     }
 }

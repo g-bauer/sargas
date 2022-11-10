@@ -75,7 +75,7 @@ mod test {
     use crate::utils::test_system;
 
     #[test]
-    fn andersen() {
+    fn lowe_andersen() {
         let mut system = test_system();
         let thermostat = LoweAndersen::new(0.8, 0.1, 0.1, 1.0);
         thermostat.apply(&mut system);
@@ -84,7 +84,8 @@ mod test {
             system
                 .configuration
                 .kinetic_energy_from_velocities()
-                .unwrap()
+                .unwrap(),
+            epsilon = 1e-12
         )
     }
 }

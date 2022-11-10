@@ -42,7 +42,7 @@ mod test {
     use crate::utils::test_system;
 
     #[test]
-    fn andersen() {
+    fn velocity_rescaling() {
         let mut system = test_system();
         let thermostat = VelocityRescaling::new(0.8);
         thermostat.apply(&mut system);
@@ -51,7 +51,8 @@ mod test {
             system
                 .configuration
                 .kinetic_energy_from_velocities()
-                .unwrap()
+                .unwrap(),
+            epsilon=1e-12
         )
     }
 }

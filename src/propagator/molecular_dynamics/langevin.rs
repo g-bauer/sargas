@@ -68,3 +68,26 @@ impl fmt::Display for Langevin {
         write!(f, "  damping constant: {}", self.damping_constant)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use approx::assert_relative_eq;
+
+    use super::*;
+    use crate::utils::test_system;
+
+    #[test]
+    fn langevin() {
+        let mut system = test_system();
+        let mut integrator = Langevin::new(0.1, 0.8, 0.1);
+        integrator.apply(&mut system);
+        assert_relative_eq!(
+            system.kinetic_energy.unwrap(),
+            system
+                .configuration
+                .kinetic_energy_from_velocities()
+                .unwrap(),
+            epsilon = 1e-12
+        )
+    }
+}

@@ -41,3 +41,26 @@ impl fmt::Display for VelocityVerlet {
         write!(f, "Velocity Verlet\n  time step: {}", self.dt)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use approx::assert_relative_eq;
+
+    use super::*;
+    use crate::utils::test_system;
+
+    #[test]
+    fn velocity_verlet() {
+        let mut system = test_system();
+        let mut integrator = VelocityVerlet::new(0.1);
+        integrator.apply(&mut system);
+        assert_relative_eq!(
+            system.kinetic_energy.unwrap(),
+            system
+                .configuration
+                .kinetic_energy_from_velocities()
+                .unwrap(),
+            epsilon = 1e-12
+        )
+    }
+}
