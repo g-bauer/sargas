@@ -1,5 +1,5 @@
 use crate::configuration::Configuration;
-use crate::potential::LennardJones;
+use crate::lennard_jones::LennardJones;
 use crate::system::System;
 use std::rc::Rc;
 

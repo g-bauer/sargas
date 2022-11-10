@@ -1,5 +1,5 @@
 pub mod configuration;
-pub mod potential;
+pub mod lennard_jones;
 pub mod propagator;
 pub mod sampler;
 pub mod simulation;
@@ -12,7 +12,7 @@ use pyo3::prelude::*;
 
 pub mod prelude {
     pub use crate::configuration::Configuration;
-    pub use crate::potential::{LennardJones, Potential};
+    pub use crate::lennard_jones::{LennardJones};
     pub use crate::propagator::monte_carlo::MonteCarlo;
     pub use crate::sampler::Sampler;
     pub use crate::simulation::Simulation;
@@ -37,7 +37,7 @@ fn sargas(_: Python, m: &PyModule) -> PyResult<()> {
     // Trajectory Reader
     m.add_class::<propagator::trajectory_reader::python::PyTrajectoryReader>()?;
 
-    m.add_class::<potential::python::PyPotential>()?;
+    m.add_class::<lennard_jones::python::PyLennardJones>()?;
     m.add_class::<sampler::python::PySampler>()?;
     Ok(())
 }

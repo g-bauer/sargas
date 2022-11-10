@@ -1,6 +1,6 @@
 use crate::configuration::{maxwell_boltzmann, Configuration};
 use crate::error::SargasError;
-use crate::potential::Potential;
+use crate::lennard_jones::LennardJones;
 use crate::vec::Vec3;
 use ndarray::{Array1, Array2};
 
@@ -12,7 +12,7 @@ use std::rc::Rc;
 
 pub struct System {
     pub configuration: Configuration,
-    pub potential: Rc<dyn Potential>,
+    pub potential: Rc<LennardJones>,
     pub potential_energy: f64,
     pub virial: f64,
     pub kinetic_energy: Option<f64>,
@@ -47,7 +47,7 @@ impl Display for System {
 impl System {
     pub fn new(
         configuration: Configuration,
-        potential: Rc<dyn Potential>,
+        potential: Rc<LennardJones>,
     ) -> Result<Self, SargasError> {
         if potential.rc2().sqrt() > 0.5 * configuration.box_length && configuration.nparticles != 0
         {
@@ -346,7 +346,7 @@ impl System {
 pub mod python {
     use super::*;
     use crate::configuration::python::PyConfiguration;
-    use crate::potential::python::PyPotential;
+    use crate::lennard_jones::python::PyLennardJones;
     use numpy::{IntoPyArray, PyArray2};
     use pyo3::prelude::*;
 
@@ -374,7 +374,7 @@ pub mod python {
         #[new]
         fn new(
             configuration: PyConfiguration,
-            potential: PyPotential,
+            potential: PyLennardJones,
         ) -> Result<Self, SargasError> {
             Ok(Self {
                 _data: Rc::new(RefCell::new(System::new(configuration._data, potential.0)?)),

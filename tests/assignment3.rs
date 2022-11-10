@@ -1,6 +1,6 @@
 use sargas::configuration::Configuration;
 use sargas::error::SargasError;
-use sargas::potential::LennardJones;
+use sargas::lennard_jones::LennardJones;
 use sargas::system::System;
 use std::path::Path;
 use std::rc::Rc;
@@ -17,7 +17,7 @@ mod assignment3 {
     use approx::assert_relative_eq;
     use sargas::configuration::Configuration;
     use sargas::error::SargasError;
-    use sargas::potential::LennardJones;
+    use sargas::lennard_jones::LennardJones;
     use sargas::propagator::molecular_dynamics::velocity_verlet::VelocityVerlet;
     use sargas::propagator::molecular_dynamics::Integrator;
     use sargas::propagator::Propagator;

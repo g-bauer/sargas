@@ -1,6 +1,6 @@
 use sargas::configuration::Configuration;
 use sargas::error::SargasError;
-use sargas::potential::LennardJones;
+use sargas::lennard_jones::LennardJones;
 use sargas::system::System;
 use std::path::Path;
 use std::rc::Rc;
@@ -16,7 +16,7 @@ mod assignment1 {
     use super::get_system;
     use approx::assert_relative_eq;
     use sargas::error::SargasError;
-    use sargas::potential::{LennardJones, Potential};
+    use sargas::lennard_jones::LennardJones;
     use sargas::vec::Vec3;
 
     fn round_to(x: f64, places: i32) -> f64 {
@@ -54,7 +54,7 @@ mod assignment1 {
 
     #[test]
     fn lennard_jones_virial() {
-        let lj: Box<dyn Potential> = Box::new(LennardJones::new(1.0, 1.0, 3.0, false));
+        let lj = LennardJones::new(1.0, 1.0, 3.0, false);
         let r_min = 2.0f64.powf(1.0 / 6.0);
         assert_relative_eq!(lj.energy(r_min.powi(2)), -1.0);
         assert_relative_eq!(lj.virial(r_min.powi(2)), 0.0);
@@ -63,7 +63,7 @@ mod assignment1 {
 
     #[test]
     fn lennard_jones_shift() {
-        let lj: Box<dyn Potential> = Box::new(LennardJones::new_shifted(1.0, 1.0, 3.0, false));
+        let lj = LennardJones::new_shifted(1.0, 1.0, 3.0, false);
         let r_min = 2.0f64.powf(1.0 / 6.0);
         assert_relative_eq!(lj.virial(r_min.powi(2)), 0.0);
         assert_relative_eq!(lj.virial(9.0), -0.03283149023127684);
@@ -80,7 +80,7 @@ mod assignment1 {
         let epsilon = 5.67;
         let rc = 3.0 * sigma;
 
-        let lj: Box<dyn Potential> = Box::new(LennardJones::new(sigma, epsilon, rc, true));
+        let lj = LennardJones::new(sigma, epsilon, rc, true);
 
         assert_relative_eq!(
             lj.energy_tail(density, nparticles),
@@ -96,7 +96,7 @@ mod assignment1 {
         let epsilon = 5.67;
         let rc = 3.0 * sigma;
 
-        let lj: Box<dyn Potential> = Box::new(LennardJones::new(sigma, epsilon, rc, true));
+        let lj = LennardJones::new(sigma, epsilon, rc, true);
 
         assert_relative_eq!(
             lj.pressure_tail(density),
