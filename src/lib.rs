@@ -35,6 +35,7 @@ fn sargas(_: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<propagator::molecular_dynamics::python::PyThermostat>()?;
 
     // Trajectory Reader
+    #[cfg(chemfiles)]
     m.add_class::<propagator::trajectory_reader::python::PyTrajectoryReader>()?;
 
     m.add_class::<lennard_jones::python::PyLennardJones>()?;

@@ -3,6 +3,7 @@ use std::fmt::Display;
 use crate::{error::SargasError, system::System};
 pub mod molecular_dynamics;
 pub mod monte_carlo;
+#[cfg(chemfiles)]
 pub mod trajectory_reader;
 
 pub trait Propagator: Display {

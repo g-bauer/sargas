@@ -1,11 +1,11 @@
 use crate::system::System;
 use crate::vec::Vec3;
+#[cfg(chemfiles)]
 use chemfiles::{Frame, Trajectory, UnitCell};
 use rand::thread_rng;
 use rand_distr::{Distribution, Uniform};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::rc::Rc;
 
 pub trait Sampler {
@@ -251,68 +251,74 @@ impl Sampler for WidomSampler {
     }
 }
 
-pub struct TrajectoryWriter {
-    filename: PathBuf,
-    frequency: usize,
-    step: usize,
-}
+#[cfg(chemfiles)]
+mod trajectory_writer {
+    use super::*;
+    use std::path::PathBuf;
 
-impl TrajectoryWriter {
-    pub fn new(filename: PathBuf, frequency: usize) -> Result<Self, String> {
-        let _trajectory = Trajectory::open_with_format(filename.clone(), 'w', "").unwrap();
-        Ok(Self {
-            filename,
-            frequency,
-            step: 1,
-        })
-    }
-}
-
-impl Sampler for TrajectoryWriter {
-    fn name(&self) -> String {
-        String::from("trajectory")
+    pub struct TrajectoryWriter {
+        filename: PathBuf,
+        frequency: usize,
+        step: usize,
     }
 
-    fn sample(&mut self, system: &System) {
-        let mut trj = Trajectory::open_with_format(self.filename.clone(), 'a', "").unwrap();
-        let mut frame = Frame::new();
-        frame.resize(system.configuration.positions.len());
-        frame.set_step(self.step);
-        let l = system.configuration.box_length;
-        frame.set_cell(&UnitCell::new([l, l, l]));
-        frame.add_velocities();
+    impl TrajectoryWriter {
+        pub fn new(filename: PathBuf, frequency: usize) -> Result<Self, String> {
+            let _trajectory = Trajectory::open_with_format(filename.clone(), 'w', "").unwrap();
+            Ok(Self {
+                filename,
+                frequency,
+                step: 1,
+            })
+        }
+    }
 
-        for (p, frame_position) in system
-            .configuration
-            .positions
-            .iter()
-            .zip(frame.positions_mut())
-        {
-            *frame_position = [p.x, p.y, p.z];
+    impl Sampler for TrajectoryWriter {
+        fn name(&self) -> String {
+            String::from("trajectory")
         }
 
-        match system.configuration.velocities.as_ref() {
-            Some(v) => v
+        fn sample(&mut self, system: &System) {
+            let mut trj = Trajectory::open_with_format(self.filename.clone(), 'a', "").unwrap();
+            let mut frame = Frame::new();
+            frame.resize(system.configuration.positions.len());
+            frame.set_step(self.step);
+            let l = system.configuration.box_length;
+            frame.set_cell(&UnitCell::new([l, l, l]));
+            frame.add_velocities();
+
+            for (p, frame_position) in system
+                .configuration
+                .positions
                 .iter()
-                .zip(frame.velocities_mut().expect("missing velocities"))
-                .for_each(|(vi, vif)| *vif = [vi.x, vi.y, vi.z]),
-            None => frame
-                .velocities_mut()
-                .expect("missing velocities")
-                .iter_mut()
-                .for_each(|v| *v = [0.0; 3]),
+                .zip(frame.positions_mut())
+            {
+                *frame_position = [p.x, p.y, p.z];
+            }
+
+            match system.configuration.velocities.as_ref() {
+                Some(v) => v
+                    .iter()
+                    .zip(frame.velocities_mut().expect("missing velocities"))
+                    .for_each(|(vi, vif)| *vif = [vi.x, vi.y, vi.z]),
+                None => frame
+                    .velocities_mut()
+                    .expect("missing velocities")
+                    .iter_mut()
+                    .for_each(|v| *v = [0.0; 3]),
+            }
+
+            trj.write(&frame).unwrap();
+            self.step += 1;
         }
 
-        trj.write(&frame).unwrap();
-        self.step += 1;
-    }
+        fn frequency(&self) -> usize {
+            self.frequency
+        }
 
-    fn frequency(&self) -> usize {
-        self.frequency
-    }
-
-    fn property(&self) -> HashMap<String, Vec<f64>> {
-        HashMap::new()
+        fn property(&self) -> HashMap<String, Vec<f64>> {
+            HashMap::new()
+        }
     }
 }
 
@@ -362,6 +368,7 @@ pub mod python {
         /// Returns
         /// -------
         /// Sampler
+        #[cfg(chemfiles)]
         #[staticmethod]
         #[pyo3(text_signature = "(filename, frequency)")]
         fn trajectory(filename: &str, frequency: usize) -> Self {
