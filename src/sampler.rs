@@ -1,6 +1,6 @@
 use crate::system::System;
 use crate::vec::Vec3;
-#[cfg(chemfiles)]
+#[cfg(feature = "chemfiles")]
 use chemfiles::{Frame, Trajectory, UnitCell};
 use rand::thread_rng;
 use rand_distr::{Distribution, Uniform};
@@ -251,7 +251,7 @@ impl Sampler for WidomSampler {
     }
 }
 
-#[cfg(chemfiles)]
+#[cfg(feature = "chemfiles")]
 mod trajectory_writer {
     use super::*;
     use std::path::PathBuf;
@@ -325,6 +325,8 @@ mod trajectory_writer {
 #[cfg(feature = "python")]
 pub mod python {
     use super::*;
+    #[cfg(feature = "chemfiles")]
+    use super::trajectory_writer::TrajectoryWriter;
     use pyo3::prelude::*;
 
     #[pyclass(name = "Sampler", unsendable)]
@@ -368,13 +370,13 @@ pub mod python {
         /// Returns
         /// -------
         /// Sampler
-        #[cfg(chemfiles)]
+        #[cfg(feature = "chemfiles")]
         #[staticmethod]
         #[pyo3(text_signature = "(filename, frequency)")]
         fn trajectory(filename: &str, frequency: usize) -> Self {
             Self {
                 _data: Rc::new(RefCell::new(
-                    TrajectoryWriter::new(PathBuf::from(filename), frequency).unwrap(),
+                    TrajectoryWriter::new(std::path::PathBuf::from(filename), frequency).unwrap(),
                 )),
             }
         }
