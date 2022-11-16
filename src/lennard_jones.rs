@@ -1,7 +1,6 @@
 use std::f64::consts::PI;
-use std::rc::Rc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LennardJones {
     /// size parameter (diameter)
     sigma: f64,
@@ -125,7 +124,7 @@ pub mod python {
     #[pyclass(name = "LennardJones", unsendable)]
     #[derive(Clone)]
     #[pyo3(text_signature = "(sigma, epsilon, rc, tail_correction, shift_at=None)")]
-    pub struct PyLennardJones(pub Rc<LennardJones>);
+    pub struct PyLennardJones(pub LennardJones);
 
     /// Lennard-Jones potential
     ///
@@ -156,18 +155,13 @@ pub mod python {
             shift_at: Option<f64>,
         ) -> Self {
             match shift_at {
-                None => Self(Rc::new(LennardJones::new(
-                    sigma,
-                    epsilon,
-                    rc,
-                    tail_correction,
-                ))),
-                Some(s) => Self(Rc::new(LennardJones::new_shifted(
+                None => Self(LennardJones::new(sigma, epsilon, rc, tail_correction)),
+                Some(s) => Self(LennardJones::new_shifted(
                     sigma,
                     epsilon,
                     s,
                     tail_correction,
-                ))),
+                )),
             }
         }
 
