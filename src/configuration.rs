@@ -1,4 +1,5 @@
 use crate::vec::Vec3;
+#[cfg(chemfiles)]
 use chemfiles::{Frame, Trajectory, UnitCell};
 use ndarray::Array2;
 use rand_distr::{Distribution, Normal};
@@ -86,6 +87,7 @@ impl Configuration {
         }
     }
 
+    #[cfg(chemfiles)]
     pub fn from_file<P: AsRef<Path>>(
         path: P,
         box_length: f64,

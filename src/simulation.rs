@@ -110,6 +110,7 @@ pub mod python {
     use crate::lennard_jones::python::PyLennardJones;
     use crate::propagator::molecular_dynamics::python::PyMolecularDynamics;
     use crate::propagator::monte_carlo::python::*;
+    #[cfg(chemfiles)]
     use crate::propagator::trajectory_reader::TrajectoryReader;
     use crate::sampler::python::PySampler;
     use crate::system::python::PySystem;
@@ -219,6 +220,7 @@ pub mod python {
         /// Returns
         /// -------
         /// Simulation : a simulation where each step is a frame of an existing trajectory.
+        #[cfg(chemfiles)]
         #[staticmethod]
         #[pyo3(text_signature = "(potential, path)")]
         fn rerun_trajectory(potential: PyLennardJones, path: String) -> PyResult<Self> {

@@ -1,8 +1,10 @@
 use thiserror::Error;
+#[cfg(chemfiles)]
 use chemfiles;
 
 #[derive(Error, Debug)]
 pub enum SargasError {
+    #[cfg(chemfiles)]
     #[error(transparent)]
     ChemfilesError(#[from] chemfiles::Error),
     #[error("End of trajectory reached.")]

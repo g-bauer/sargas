@@ -5,6 +5,7 @@ use sargas::system::System;
 use std::path::Path;
 use std::rc::Rc;
 
+#[cfg(chemfiles)]
 pub fn get_system(name: &str, rc: f64, box_length: f64) -> Result<System, SargasError> {
     let path = Path::new(file!()).parent().unwrap().join(name);
     let potential = Rc::new(LennardJones::new(1.0, 1.0, rc, true));
@@ -12,6 +13,7 @@ pub fn get_system(name: &str, rc: f64, box_length: f64) -> Result<System, Sargas
     System::new(configuration, potential)
 }
 
+#[cfg(chemfiles)]
 mod assignment3 {
     use super::get_system;
     use approx::assert_relative_eq;

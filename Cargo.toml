@@ -13,16 +13,13 @@ rand = "0.8"
 rand_distr = "0.4.0"
 numpy = { version = "0.17", optional = true }
 itertools = "0.10"
-chemfiles = "0.10.2"
+chemfiles = { version = "0.10.2", optional = true }
 approx = "*"
 thiserror = "1.0"
 
 [dependencies.pyo3]
 version = "0.17"
 optional = true
-
-[profile.release]
-debug = true
 
 [features]
 python = ["pyo3/extension-module", "numpy"]
