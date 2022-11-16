@@ -21,9 +21,6 @@ thiserror = "1.0"
 version = "0.17"
 optional = true
 
-[profile.release]
-debug = true
-
 [features]
 python = ["pyo3/extension-module", "numpy"]
 default = ["python"]
