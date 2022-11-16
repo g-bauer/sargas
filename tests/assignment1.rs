@@ -1,26 +1,30 @@
-use sargas::configuration::Configuration;
+#[cfg(feature = "chemfiles")]
 use sargas::error::SargasError;
-use sargas::lennard_jones::LennardJones;
+#[cfg(feature = "chemfiles")]
 use sargas::system::System;
-use std::path::Path;
-use std::rc::Rc;
 
-#[cfg(chemfiles)]
+#[cfg(feature = "chemfiles")]
 pub fn get_system(name: &str, rc: f64, box_length: f64) -> Result<System, SargasError> {
+    use sargas::configuration::Configuration;
+    use sargas::lennard_jones::LennardJones;
+    use std::path::Path;
+
     let path = Path::new(file!()).parent().unwrap().join(name);
-    let potential = Rc::new(LennardJones::new(1.0, 1.0, rc, true));
+    let potential = LennardJones::new(1.0, 1.0, rc, true);
     let configuration = Configuration::from_file(path, box_length, 800).unwrap();
     System::new(configuration, potential)
 }
 
-#[cfg(chemfiles)]
 mod assignment1 {
+    #[cfg(feature = "chemfiles")]
     use super::get_system;
     use approx::assert_relative_eq;
+    #[cfg(feature = "chemfiles")]
     use sargas::error::SargasError;
     use sargas::lennard_jones::LennardJones;
     use sargas::vec::Vec3;
 
+    #[cfg(feature = "chemfiles")]
     fn round_to(x: f64, places: i32) -> f64 {
         let f = 10.0f64.powi(places);
         (x * f).round() / f
@@ -107,6 +111,7 @@ mod assignment1 {
         );
     }
 
+    #[cfg(feature = "chemfiles")]
     #[test]
     fn nist1() -> Result<(), SargasError> {
         let system = get_system("lj1.xyz", 3.0, 10.0)?;
@@ -120,6 +125,7 @@ mod assignment1 {
         Ok(())
     }
 
+    #[cfg(feature = "chemfiles")]
     #[test]
     fn nist2() -> Result<(), SargasError> {
         let system = get_system("lj2.xyz", 3.0, 8.0)?;
@@ -134,6 +140,7 @@ mod assignment1 {
     }
 
     #[test]
+    #[cfg(feature = "chemfiles")]
     fn nist3() -> Result<(), SargasError> {
         let system = get_system("lj3.xyz", 3.0, 10.0)?;
         let u_tail = system
@@ -146,6 +153,7 @@ mod assignment1 {
         Ok(())
     }
 
+    #[cfg(feature = "chemfiles")]
     #[test]
     fn nist4() -> Result<(), SargasError> {
         let system = get_system("lj4.xyz", 3.0, 8.0)?;

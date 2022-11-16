@@ -106,9 +106,13 @@ impl Simulation {
 #[cfg(feature = "python")]
 pub mod python {
     use super::*;
+    #[cfg(feature = "chemfiles")]
+    use crate::configuration::Configuration;
+    #[cfg(feature = "chemfiles")]
+    use crate::lennard_jones::python::PyLennardJones;
     use crate::propagator::molecular_dynamics::python::PyMolecularDynamics;
     use crate::propagator::monte_carlo::python::*;
-    #[cfg(chemfiles)]
+    #[cfg(feature = "chemfiles")]
     use crate::propagator::trajectory_reader::TrajectoryReader;
     use crate::sampler::python::PySampler;
     use crate::system::python::PySystem;
@@ -218,7 +222,7 @@ pub mod python {
         /// Returns
         /// -------
         /// Simulation : a simulation where each step is a frame of an existing trajectory.
-        #[cfg(chemfiles)]
+        #[cfg(feature = "chemfiles")]
         #[staticmethod]
         #[pyo3(text_signature = "(potential, path)")]
         fn rerun_trajectory(potential: PyLennardJones, path: String) -> PyResult<Self> {

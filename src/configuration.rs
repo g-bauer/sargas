@@ -1,10 +1,10 @@
 use crate::vec::Vec3;
-#[cfg(chemfiles)]
+#[cfg(feature = "chemfiles")]
 use chemfiles::{Frame, Trajectory, UnitCell};
 use ndarray::Array2;
 use rand_distr::{Distribution, Normal};
 use std::fmt;
-#[cfg(chemfiles)]
+#[cfg(feature = "chemfiles")]
 use std::path::Path;
 
 #[derive(Clone)]
@@ -88,7 +88,7 @@ impl Configuration {
         }
     }
 
-    #[cfg(chemfiles)]
+    #[cfg(feature = "chemfiles")]
     pub fn from_file<P: AsRef<Path>>(
         path: P,
         box_length: f64,
