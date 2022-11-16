@@ -4,6 +4,7 @@ use chemfiles::{Frame, Trajectory, UnitCell};
 use ndarray::Array2;
 use rand_distr::{Distribution, Normal};
 use std::fmt;
+#[cfg(chemfiles)]
 use std::path::Path;
 
 #[derive(Clone)]

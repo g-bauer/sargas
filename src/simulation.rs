@@ -106,8 +106,6 @@ impl Simulation {
 #[cfg(feature = "python")]
 pub mod python {
     use super::*;
-    use crate::configuration::Configuration;
-    use crate::lennard_jones::python::PyLennardJones;
     use crate::propagator::molecular_dynamics::python::PyMolecularDynamics;
     use crate::propagator::monte_carlo::python::*;
     #[cfg(chemfiles)]

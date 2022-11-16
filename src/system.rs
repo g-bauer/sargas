@@ -12,7 +12,7 @@ use std::rc::Rc;
 
 pub struct System {
     pub configuration: Configuration,
-    pub potential: Rc<LennardJones>,
+    pub potential: LennardJones,
     pub potential_energy: f64,
     pub virial: f64,
     pub kinetic_energy: Option<f64>,
@@ -47,7 +47,7 @@ impl Display for System {
 impl System {
     pub fn new(
         configuration: Configuration,
-        potential: Rc<LennardJones>,
+        potential: LennardJones,
     ) -> Result<Self, SargasError> {
         if potential.rc2().sqrt() > 0.5 * configuration.box_length && configuration.nparticles != 0
         {
